@@ -72,21 +72,31 @@ export function LocationPicker({
   const [isSearching, setIsSearching] = useState(false);
 
   const handleLocationSelect = (lat: number, lng: number) => {
-    // Reverse geocoding to get address
+    // Reverse geocoding using Photon API to avoid CORS issues
     fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
+      `https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}`
     )
       .then((res) => res.json())
       .then((data) => {
+        let address = "Tanlangan manzil";
+        if (data && data.features && data.features.length > 0) {
+            const props = data.features[0].properties;
+            address = [props.name, props.street, props.city, props.country]
+              .filter(Boolean)
+              .join(", ");
+        } else {
+             address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        }
+
         const newLocation = {
           lat,
           lng,
-          address: data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+          address: address,
         };
         setSelectedLocation(newLocation);
       })
       .catch(() => {
-        // Fallback if geocoding fails
+        // Fallback
         const newLocation = {
           lat,
           lng,
@@ -108,18 +118,25 @@ export function LocationPicker({
 
     setIsSearching(true);
     try {
+      // Use Photon API instead of direct Nominatim to avoid strict CORS/User-Agent issues
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          searchQuery
-        )}&countrycodes=uz&limit=1`
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(searchQuery)}&limit=1`
       );
       const data = await response.json();
 
-      if (data && data.length > 0) {
+      if (data && data.features && data.features.length > 0) {
+        const feature = data.features[0];
+        const [lng, lat] = feature.geometry.coordinates;
+        
+        const props = feature.properties;
+        const address = [props.name, props.city, props.country]
+          .filter(Boolean)
+          .join(", ");
+
         const location = {
-          lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon),
-          address: data[0].display_name,
+          lat: lat,
+          lng: lng,
+          address: address || "Manzil topildi",
         };
         setSelectedLocation(location);
       } else {

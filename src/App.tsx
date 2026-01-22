@@ -3,41 +3,38 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
+import { TelegramAuthProvider } from "./contexts/TelegramAuthContext";
 import { useAuthStore } from "./store/authStore";
 import { ThemeProvider } from "@/providers/ThemeProvider";
-import AppRoutes from "./routes";
 import { GroupModalProvider } from "@/providers/GroupModalProvider";
 
 // Layouts
 import DashboardLayout from "./components/layouts/DashboardLayout";
 
 // Auth pages
-import Login from "./pages/auth/Login";
-import Register from "./pages/auth/Register";
+import RoleSelection from "./pages/auth/RoleSelection";
 
 // Teacher pages
 import TeacherDashboard from "./pages/teacher/TeacherDashboard";
+import Calendar from "./pages/teacher/Calendar";
+import TeacherGroups from "./pages/teacher/TeacherGroups";
+import TeacherAnswers from "./pages/teacher/TeacherAnswers";
+import TeacherTasks from "./pages/teacher/TeacherTasks";
+import AddTask from "./pages/teacher/AddTask";
+import GroupDetails from "./pages/teacher/GroupDetails";
 
 // Student pages
 import StudentDashboard from "./pages/student/StudentDashboard";
+import StudentTasks from "./pages/student/StudentTasks";
+import StudentGroups from "./pages/student/StudentGroups";
+import StudentGroupTasks from "./pages/student/StudentGroupTasks";
+import StudentCalendar from "./pages/student/StudentCalendar";
+import StudentGrades from "./pages/student/StudentGrades";
 
 // Shared pages
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
-import Calendar from "./pages/teacher/Calendar";
-import TeacherGroups from "./pages/teacher/TeacherGroups";
-import StudentTasks from "./pages/student/StudentTasks";
-import TeacherAnswers from "./pages/teacher/TeacherAnswers";
-import StudentGroups from "./pages/student/StudentGroups";
-import StudentGroupTasks from "./pages/student/StudentGroupTasks";
-import StudentCalendar from "./pages/student/StudentCalendar";
-import TeacherTasks from "./pages/teacher/TeacherTasks";
-import StudentGrades from "./pages/student/StudentGrades";
-import AddTask from "./pages/teacher/AddTask";
-import GroupDetails from "./pages/teacher/GroupDetails";
-import Home from "./pages/Home";
 
 const queryClient = new QueryClient();
 
@@ -54,31 +51,16 @@ const ProtectedRoute = ({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        Loading...
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/auth/login" />;
+    return <Navigate to="/role-selection" />;
   }
 
   if (allowedRoles.length > 0 && role && !allowedRoles.includes(role)) {
-    return (
-      <Navigate
-        to={role === "teacher" ? "/teacher-dashboard" : "/student-dashboard"}
-      />
-    );
-  }
-
-  return <>{children}</>;
-};
-
-// Auth layout wrapper
-const AuthLayout = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, role } = useAuthStore();
-
-  if (isAuthenticated && role) {
     return (
       <Navigate
         to={role === "teacher" ? "/teacher-dashboard" : "/student-dashboard"}
@@ -95,31 +77,16 @@ const App = () => (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <BrowserRouter>
-            <AuthProvider>
+            <TelegramAuthProvider>
               <Toaster />
               <Sonner />
 
               <Routes>
-                {/* Auth Routes */}
-                <Route
-                  path="/auth/login"
-                  element={
-                    <AuthLayout>
-                      <Login />
-                    </AuthLayout>
-                  }
-                />
-                <Route
-                  path="/auth/register"
-                  element={
-                    <AuthLayout>
-                      <Register />
-                    </AuthLayout>
-                  }
-                />
-
-                {/* Home Route */}
-                <Route path="/" element={<Home />} />
+                {/* Root - Redirect to role selection */}
+                <Route path="/" element={<Navigate to="/role-selection" replace />} />
+                
+                {/* Role Selection (Telegram Auth Entry Point) */}
+                <Route path="/role-selection" element={<RoleSelection />} />
 
                 {/* Teacher Dashboard Routes */}
                 <Route
@@ -137,7 +104,6 @@ const App = () => (
                   <Route path="tasks" element={<TeacherTasks />} />
                   <Route path="tasks/add" element={<AddTask />} />
                   <Route path="groups/:groupId" element={<GroupDetails />} />
-                  {/* Add more teacher routes here */}
                 </Route>
 
               
@@ -158,7 +124,6 @@ const App = () => (
                     path="groups/:groupId"
                     element={<StudentGroupTasks />}
                   />
-                  {/* Add more student routes here */}
                 </Route>
 
                 {/* Shared Routes */}
@@ -186,7 +151,7 @@ const App = () => (
 
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            </AuthProvider>
+            </TelegramAuthProvider>
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>

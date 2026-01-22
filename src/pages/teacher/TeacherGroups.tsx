@@ -1,29 +1,12 @@
 import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Plus,
-  Users,
-  MapPin,
-  Calendar,
-  ChevronRight,
-  Copy,
-} from "lucide-react";
+import { Plus, Users, MapPin, Calendar, Copy, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CreateGroupModal } from "@/components/modals/CreateGroupModal";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { GroupDetailsModal } from "@/components/modals/GroupDetailsModal";
 import { AddTaskModal } from "@/components/modals/AddTaskModal";
-import { nanoid } from "nanoid";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
 import { useNavigate } from "react-router-dom";
@@ -55,44 +38,28 @@ const TeacherGroups = () => {
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const navigate = useNavigate();
 
-  // Guruhlarni Supabase'dan olish
   useEffect(() => {
     const fetchGroups = async () => {
       if (!userId) return;
       const { data, error } = await supabase
         .from("groups")
-        .select("id, name, lat, lng, address, created_at")
+        .select("id, name, description, lat, lng, address, created_at")
         .eq("created_by", userId)
         .order("created_at", { ascending: false });
       if (error) {
-        toast({
-          title: "Xatolik",
-          description: error.message,
-          variant: "destructive",
-        });
+        toast({ title: "Xatolik", description: error.message, variant: "destructive" });
       } else if (data) {
-        // Har bir guruh uchun a'zolar sonini olish
         const groupsWithMembers = await Promise.all(
           data.map(async (g: any) => {
-            const { count } = await supabase
-              .from("group_members")
-              .select("id", { count: "exact", head: true })
-              .eq("group_id", g.id);
+            const { count } = await supabase.from("group_members").select("id", { count: "exact", head: true }).eq("group_id", g.id);
             return {
               id: g.id,
               title: g.name,
-              description: "", // Agar description bo'lsa, qo'shing
-              location: {
-                lat: g.lat,
-                lng: g.lng,
-                address: g.address,
-              },
+              description: g.description || "",
+              location: { lat: g.lat, lng: g.lng, address: g.address },
               members: count || 0,
               createdAt: g.created_at?.split("T")[0] || "",
-              teacher: {
-                name: name || "O'qituvchi",
-                avatar: "https://github.com/shadcn.png",
-              },
+              teacher: { name: name || "Teacher", avatar: "https://github.com/shadcn.png" },
             };
           })
         );
@@ -102,167 +69,120 @@ const TeacherGroups = () => {
     fetchGroups();
   }, [userId, name, toast]);
 
-  // Yangi guruh yaratish
-  const handleCreateGroup = async (data: {
-    title: string;
-    description: string;
-    location: {
-      lat: number;
-      lng: number;
-      address: string;
-    };
-  }) => {
+  const handleCreateGroup = async (data: any) => {
     try {
-      if (!userId) throw new Error("Foydalanuvchi aniqlanmadi");
-      const { data: group, error } = await supabase
-        .from("groups")
-        .insert([
-          {
+      if (!userId) throw new Error("Authentication Error");
+      const { data: group, error } = await supabase.from("groups").insert([{
             name: data.title,
+            description: data.description,
             lat: data.location.lat,
             lng: data.location.lng,
             address: data.location.address,
             created_by: userId,
-          },
-        ])
-        .select()
-        .single();
+      }]).select().single();
+      
       if (error) throw error;
+      
       setGroups((prev) => [
         {
           id: group.id,
           title: group.name,
           description: data.description,
-          location: {
-            lat: group.lat,
-            lng: group.lng,
-            address: group.address,
-          },
-          members: 0, // Yangi guruh yaratishda a'zolar soni 0 bo'ladi
+          location: { lat: group.lat, lng: group.lng, address: group.address },
+          members: 0,
           createdAt: group.created_at?.split("T")[0] || "",
-          teacher: {
-            name: name || "O'qituvchi",
-            avatar: "https://github.com/shadcn.png",
-          },
+          teacher: { name: name || "Teacher", avatar: "https://github.com/shadcn.png" },
         },
         ...prev,
       ]);
-      toast({ title: "Muvaffaqiyatli", description: "Yangi guruh yaratildi" });
+      toast({ title: "Success", description: "Group Created" });
     } catch (error: any) {
-      toast({
-        title: "Xatolik",
-        description: error.message,
-        variant: "destructive",
-      });
+      console.error("Create Group Error:", error);
+      if (error.code === '401' || error.status === 401 || error.code === '403' || error.status === 403) {
+         toast({ 
+           title: "Authorization Error", 
+           description: "Sizning sessiyangiz tugagan yoki huquqingiz yo'q. Iltimos, qaytadan kiring.", 
+           variant: "destructive" 
+         });
+         // Optional: Redirect to login or logout
+      } else {
+         toast({ title: "Error", description: error.message || "Guruh yaratishda xatolik", variant: "destructive" });
+      }
     }
   };
 
   const handleOpenDetails = (group: Group) => {
     navigate(`/teacher-dashboard/groups/${group.id}`);
   };
-  const handleCloseDetails = () => {
-    setIsDetailsOpen(false);
-    setSelectedGroup(null);
-  };
-  const handleAddTask = () => {
-    setIsAddTaskOpen(true);
-  };
-  const handleCloseAddTask = () => {
-    setIsAddTaskOpen(false);
-  };
-  const handleSubmitTask = (data: any) => {
-    // TODO: Yangi topshiriqni API yoki statega qo'shish
-    alert("Yangi topshiriq qo'shildi: " + JSON.stringify(data, null, 2));
-  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-        <h1 className="text-3xl font-bold tracking-tight">Guruhlar</h1>
-          <p className="text-muted-foreground">
-            Barcha guruhlaringiz va ularning ma'lumotlari
-          </p>
+    <div className="min-h-screen bg-background pb-20 relative overflow-hidden">
+      {/* Gradient Header */}
+      <div className="bg-primary-gradient h-48 w-full rounded-b-[2.5rem] shadow-lg absolute top-0 z-0 content-['']" />
+
+      <div className="relative z-10 pt-8 px-6">
+        <div className="flex justify-between items-center mb-8 text-white">
+          <div>
+            <h1 className="text-3xl font-black">My Groups</h1>
+            <p className="opacity-80 text-sm font-medium">Manage your classes</p>
+          </div>
+          <button 
+            onClick={() => setIsCreateModalOpen(true)}
+            className="w-12 h-12 bg-white text-primary rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 transition-transform active:scale-95"
+          >
+            <Plus className="w-6 h-6 stroke-[3]" />
+          </button>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Yangi guruh
-        </Button>
-      </div>
-      
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {groups.map((group) => (
-          <Card key={group.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-xl">{group.title}</CardTitle>
-                  <CardDescription className="line-clamp-2">
-                    {group.description}
-                  </CardDescription>
+
+        <div className="space-y-4 pb-4">
+          {groups.length === 0 ? (
+             <div className="text-center py-10 bg-white rounded-[2rem] shadow-soft">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                  <Users className="w-8 h-8" />
                 </div>
-                <Badge variant="secondary" className="ml-2">
-                  {group.members} a'zo
-                </Badge>
+                <h3 className="text-gray-900 font-bold mb-1">No Groups</h3>
+                <p className="text-gray-500 text-sm">Create your first group to get started.</p>
+             </div>
+          ) : (
+            groups.map((group) => (
+              <div key={group.id} className="card-modern bg-white p-5 hover:shadow-xl transition-all">
+                 <div className="flex justify-between items-start mb-2">
+                    <Badge variant="secondary" className="bg-indigo-50 text-indigo-600 font-bold">
+                      {group.members} Students
+                    </Badge>
+                    <div className="flex gap-2">
+                      <Button size="icon" variant="ghost" className="h-6 w-6 text-gray-400" onClick={() => {
+                        navigator.clipboard.writeText(group.id);
+                        toast({ title: "Copied!", description: "Group ID copied to clipboard." });
+                      }}>
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                    </div>
+                 </div>
+                 
+                 <h3 className="text-xl font-bold text-gray-800 mb-1">{group.title}</h3>
+                 <p className="text-xs text-muted-foreground mb-4 line-clamp-2">{group.description}</p>
+                 
+                 <div className="space-y-2 mb-4">
+                    {group.location && (
+                       <div className="flex items-center text-xs text-gray-500">
+                         <MapPin className="w-3 h-3 mr-2" />
+                         <span className="truncate">{group.location.address}</span>
+                       </div>
+                    )}
+                    <div className="flex items-center text-xs text-gray-500">
+                       <Calendar className="w-3 h-3 mr-2" />
+                       <span>{group.createdAt}</span>
+                    </div>
+                 </div>
+
+                 <Button className="w-full rounded-xl bg-gray-50 text-gray-900 hover:bg-gray-100 border border-gray-100 shadow-none font-bold" onClick={() => handleOpenDetails(group)}>
+                    Manage Group <ChevronRight className="w-4 h-4 ml-1" />
+                 </Button>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {group.location && (
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  <span className="line-clamp-1">{group.location.address}</span>
-                </div>
-              )}
-              <div className="flex items-center text-sm text-muted-foreground">
-                <Calendar className="w-4 h-4 mr-2" />
-                <span>Yaratilgan: {group.createdAt}</span>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={group.teacher.avatar} />
-                    <AvatarFallback>
-                      {group.teacher.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="text-sm">
-                    <p className="font-medium">{group.teacher.name}</p>
-                    <p className="text-xs text-muted-foreground">O'qituvchi</p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  ID: {group.id}
-                </span>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => {
-                    navigator.clipboard.writeText(group.id);
-                    toast({ title: "ID nusxalandi!", description: group.id });
-                  }}
-                >
-                  <Copy className="w-4 h-4" />
-                </Button>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => handleOpenDetails(group)}
-              >
-                Batafsil
-                <ChevronRight className="w-4 h-4 ml-2" />
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
+            ))
+          )}
+        </div>
       </div>
 
       <CreateGroupModal
@@ -270,17 +190,16 @@ const TeacherGroups = () => {
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateGroup}
       />
-
       <GroupDetailsModal
         isOpen={isDetailsOpen}
-        onClose={handleCloseDetails}
+        onClose={() => {setIsDetailsOpen(false); setSelectedGroup(null)}}
         group={selectedGroup}
-        onAddTask={handleAddTask}
+        onAddTask={() => setIsAddTaskOpen(true)}
       />
       <AddTaskModal
         isOpen={isAddTaskOpen}
-        onClose={handleCloseAddTask}
-        onSubmit={handleSubmitTask}
+        onClose={() => setIsAddTaskOpen(false)}
+        onSubmit={(data) => console.log(data)}
         group={selectedGroup}
       />
     </div>

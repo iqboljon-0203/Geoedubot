@@ -1,38 +1,24 @@
 import { useState, useEffect } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
+import { Calendar as CalendarIcon, Clock, ChevronRight } from "lucide-react";
 
 export default function StudentCalendar() {
   const today = new Date();
-  const [selectedDate, setSelectedDate] = useState<Date | null>(today);
+  const [selectedDate, setSelectedDate] = useState<any>(today);
   const [tasks, setTasks] = useState<any[]>([]);
   const { userId } = useAuthStore();
 
   useEffect(() => {
     const fetchTasks = async () => {
       if (!userId) return;
-      // Student a'zo bo'lgan guruhlar
-      const { data: memberData } = await supabase
-        .from("group_members")
-        .select("group_id")
-        .eq("user_id", userId);
+      const { data: memberData } = await supabase.from("group_members").select("group_id").eq("user_id", userId);
       if (memberData && memberData.length > 0) {
         const groupIds = memberData.map((m: any) => m.group_id);
-        // Shu guruhlarga tegishli barcha topshiriqlar
-        const { data: tasksData } = await supabase
-          .from("tasks")
-          .select("*")
-          .in("group_id", groupIds);
+        const { data: tasksData } = await supabase.from("tasks").select("*").in("group_id", groupIds);
         setTasks(tasksData || []);
       } else {
         setTasks([]);
@@ -41,7 +27,6 @@ export default function StudentCalendar() {
     fetchTasks();
   }, [userId]);
 
-  // Tanlangan kunga mos tasklarni filtrlash
   const filteredTasks = tasks.filter((task) => {
     const taskDate = task.deadline || task.date;
     if (!taskDate || !selectedDate) return false;
@@ -54,70 +39,83 @@ export default function StudentCalendar() {
   });
 
   return (
-    <div className="max-w-xl mx-auto">
-      <Card>
-        <CardHeader>
-          <CardTitle>Kalendar</CardTitle>
-          <CardDescription>
-            Kalendar orqali faqat a'zo bo'lgan guruhlardagi topshiriqlarni
-            ko'ring
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Calendar
-            onClickDay={setSelectedDate}
-            value={selectedDate}
-            locale="uz-UZ"
-          />
-        </CardContent>
-      </Card>
+    <div className="min-h-screen bg-background pb-20 relative overflow-hidden">
+      {/* Gradient Header */}
+      <div className="bg-primary-gradient h-48 w-full rounded-b-[2.5rem] shadow-lg absolute top-0 z-0 content-['']" />
 
-      {selectedDate && (
-        <div className="mt-6">
-          <h2 className="text-lg font-semibold mb-2">
-            {selectedDate.toLocaleDateString()} uchun topshiriqlar:
-          </h2>
-          {filteredTasks.length === 0 ? (
-            <div className="text-muted-foreground">
-              Bu kunda topshiriq yo'q.
+      <div className="relative z-10 pt-8 px-6">
+         <div className="flex justify-between items-center mb-6 text-white">
+            <div>
+              <p className="opacity-80 text-sm font-medium mb-1">Schedule</p>
+              <h1 className="text-3xl font-black">Calendar</h1>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredTasks.map((task) => (
-                <Card
-                  key={task.id}
-                  className="hover:shadow-md transition-shadow border border-primary/20"
-                >
-                  <CardContent className="flex flex-col gap-2 py-4">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-base">
-                        {task.title}
-                      </span>
-                      <Badge
-                        variant={
-                          task.type === "homework" ? "secondary" : "outline"
-                        }
-                      >
-                        {task.type === "homework" ? "Uyga vazifa" : "Amaliyot"}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>{task.group}</span>
-                      {(task.deadline || task.date) && (
-                        <span className="ml-2 px-2 py-0.5 rounded bg-muted text-xs">
-                          {task.deadline
-                            ? `Deadline: ${new Date(task.deadline).toLocaleDateString()}`
-                            : `Amaliyot kuni: ${new Date(task.date!).toLocaleDateString()}`}
-                        </span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
+              <CalendarIcon className="w-6 h-6 text-white" />
             </div>
-          )}
-        </div>
-      )}
+         </div>
+
+         <div className="bg-white rounded-[2rem] shadow-xl p-4 mb-6 border border-gray-100">
+           <Calendar
+              onClickDay={setSelectedDate}
+              value={selectedDate}
+              className="w-full !border-none !font-sans custom-calendar"
+              tileClassName={({ date, view }) => {
+                 if (view === 'month') {
+                    const hasTask = tasks.some(t => {
+                       const d = new Date(t.deadline || t.date);
+                       return d.getDate() === date.getDate() && d.getMonth() === date.getMonth() && d.getFullYear() === date.getFullYear();
+                    });
+                    return hasTask ? 'has-task-indicator' : null;
+                 }
+                 return null;
+              }}
+           />
+         </div>
+
+         <div>
+            <h2 className="text-lg font-bold text-gray-800 mb-4 px-2 flex items-center gap-2">
+               {selectedDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+               <Badge variant="secondary" className="bg-gray-100 text-gray-600 rounded-lg">{filteredTasks.length}</Badge>
+            </h2>
+
+            <div className="space-y-4">
+               {filteredTasks.length === 0 ? (
+                  <div className="text-center py-6 text-gray-400 text-sm bg-gray-50 rounded-2xl border border-gray-100 border-dashed">
+                     No tasks for this day.
+                  </div>
+               ) : (
+                  filteredTasks.map((task) => (
+                    <div key={task.id} className="card-modern bg-white p-5 hover:shadow-lg transition-all border border-gray-100">
+                       <div className="flex justify-between items-start mb-2">
+                          <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${task.type === 'homework' ? 'bg-indigo-50 text-indigo-600' : 'bg-teal-50 text-teal-600'}`}>
+                             {task.type}
+                          </span>
+                       </div>
+                       <h3 className="font-bold text-gray-800 mb-1">{task.title}</h3>
+                       <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {task.deadline ? `Deadline: ${new Date(task.deadline).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : 'All Day'}
+                       </p>
+                       <p className="text-xs text-gray-500 line-clamp-2">{task.description}</p>
+                    </div>
+                  ))
+               )}
+            </div>
+         </div>
+      </div>
+      
+      <style>{`
+        .react-calendar { width: 100% !important; background: transparent !important; }
+        .react-calendar__navigation button { color: #333; font-weight: bold; font-size: 1.1em; }
+        .react-calendar__month-view__weekdays { font-size: 0.8em; font-weight: bold; text-transform: uppercase; color: #aaa; text-decoration: none !important; }
+        .react-calendar__tile { padding: 10px; font-weight: 500; font-size: 0.9em; border-radius: 12px; }
+        .react-calendar__tile--now { background: #eff6ff !important; color: #3b82f6 !important; }
+        .react-calendar__tile--active { background: #6366f1 !important; color: white !important; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3); }
+        .react-calendar__tile:enabled:hover, .react-calendar__tile:enabled:focus { background-color: #f3f4f6; }
+        .has-task-indicator { position: relative; }
+        .has-task-indicator::after { content: ''; position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; background-color: #ec4899; border-radius: 50%; }
+        abbr[title] { text-decoration: none !important; }
+      `}</style>
     </div>
   );
 }

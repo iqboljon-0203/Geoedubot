@@ -15,7 +15,7 @@ export function useStudentGroups(userId: string) {
       if (!groupIds.length) return [];
       const { data: groups, error: groupError } = await supabase
         .from("groups")
-        .select("id, name, teacher_id")
+        .select("id, name, created_by")
         .in("id", groupIds);
       if (groupError) throw groupError;
       return groups;

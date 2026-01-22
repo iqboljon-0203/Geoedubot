@@ -1,1 +1,4 @@
-project_id = "vhkcokbkksbfqtctjjkt"
+# Supabase Project Configuration
+# Bu fayl local development uchun. 
+# Asosiy konfiguratsiya .env faylida VITE_SUPABASE_URL va VITE_SUPABASE_ANON_KEY orqali boshqariladi.
+# project_id = "your-project-id-here"

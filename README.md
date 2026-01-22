@@ -1,73 +1,135 @@
-# Welcome to your Lovable project
+# 🎓 GeoEducationBot - Ta'lim Platformasi
 
-## Project info
+O'qituvchilar va talabalar uchun zamonaviy topshiriqlar va amaliyot boshqaruv tizimi.
 
-**URL**: https://lovable.dev/projects/fa24b85d-a4b5-46ac-b29a-54686d7d0e92
+## 🌟 Imkoniyatlar
 
-## How can I edit this code?
+### 👨‍🏫 O'qituvchilar uchun:
+- ✅ Guruhlar yaratish va boshqarish
+- ✅ Uyga vazifa va Amaliyot topshiriqlari berish
+- ✅ Talaba javoblarini ko'rish va baholash
+- ✅ Statistika va hisobotlar
+- ✅ Kalendar rejalashtirish
 
-There are several ways of editing your application.
+### 👨‍🎓 Talabalar uchun:
+- ✅ Guruhlarga qo'shilish
+- ✅ Topshiriqlarni ko'rish va bajarish
+- ✅ Javoblarni yuklash (fayl + tavsif)
+- ✅ **Geo-lokatsiya tekshiruvi** amaliyot uchun
+- ✅ Baholar va natijalarni ko'rish
 
-**Use Lovable**
+## 🗺️ Geo-Funktsiyalar
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/fa24b85d-a4b5-46ac-b29a-54686d7d0e92) and start prompting.
+**Amaliyot topshiriqlari** uchun maxsus:
+- Talaba amaliyot joyida bo'lishini tekshiradi
+- Guruh lokatsiyasiga yaqinlikni aniqlaydi (2km radius)
+- Faqat to'g'ri joylashuvda javob yuborish mumkin
 
-Changes made via Lovable will be committed automatically to this repo.
+## 🛠️ Texnologiyalar
 
-**Use your preferred IDE**
+- **Frontend:** React 18 + TypeScript + Vite
+- **UI:** Shadcn UI + Tailwind CSS
+- **Backend:** Supabase (PostgreSQL)
+- **State:** Zustand + TanStack Query
+- **Maps:** Leaflet / React-Leaflet
+- **Auth:** Supabase Authentication
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 📦 O'rnatish
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 1. Dependency'larni o'rnatish
+```bash
+npm install
+```
 
-Follow these steps:
+### 2. Supabase sozlash
+`supabase/SETUP_GUIDE.md` faylini o'qing va qadamma-qadam bajaring.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### 3. Environment Variables
+`.env` faylini yarating:
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### 4. Development serverni ishga tushirish
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## 📂 Loyiha Strukturasi
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```
+src/
+├── components/       # UI komponentlar
+├── contexts/         # React Context (Auth)
+├── hooks/           # Custom hooks
+├── integrations/    # Supabase integration
+├── lib/             # Utilities
+├── pages/           # Sahifalar
+│   ├── auth/        # Login/Register
+│   ├── teacher/     # O'qituvchi sahifalari
+│   └── student/     # Talaba sahifalari
+├── providers/       # Global providers
+├── store/           # Zustand store
+├── types/           # TypeScript types
+└── utils/           # Helper functions
 
-**Use GitHub Codespaces**
+supabase/
+├── schema.sql       # Database schema
+└── SETUP_GUIDE.md   # O'rnatish qo'llanmasi
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 🗃️ Database Schema
 
-## What technologies are used for this project?
+### Asosiy Jadvallar:
+- **profiles** - Foydalanuvchi profillari (teacher/student)
+- **groups** - O'quv guruhlari (geo-lokatsiya bilan)
+- **group_members** - Guruh a'zolari
+- **tasks** - Topshiriqlar (homework/internship)
+- **answers** - Talaba javoblari (geo-lokatsiya bilan)
 
-This project is built with:
+RLS (Row Level Security) to'liq sozlangan.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 🎯 Foydalanish
 
-## How can I deploy this project?
+### O'qituvchi sifatida:
+1. Ro'yxatdan o'ting (Teacher rolini tanlang)
+2. **Guruh yarating** (Joylashuvni belgilang)
+3. **Topshiriq qo'shing** (Uyga vazifa yoki Amaliyot)
+4. Talabalar javoblarini **ko'ring va baholang**
 
-Simply open [Lovable](https://lovable.dev/projects/fa24b85d-a4b5-46ac-b29a-54686d7d0e92) and click on Share -> Publish.
+### Talaba sifatida:
+1. Ro'yxatdan o'ting (Student rolini tanlang)
+2. **Guruh ID** orqali guruhga qo'shiling
+3. Topshiriqlarni **bajaring va javob yuboring**
+4. **Baholaringizni** kuzating
 
-## Can I connect a custom domain to my Lovable project?
+## 🔐 Xavfsizlik
 
-Yes, you can!
+- Supabase RLS policies orqali himoyalangan
+- Role-based access control (RBAC)
+- Secure file storage (Supabase Storage)
+- Location validation for internships
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 📱 Responsive Design
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Barcha qurilmalarda ishlaydi:
+- 📱 Mobile
+- 💻 Desktop
+- 📱 Tablet
+
+## 🤝 Hissa qo'shish
+
+Pull requestlar qabul qilinadi! Katta o'zgarishlar uchun avval issue oching.
+
+## 📄 Litsenziya
+
+MIT
+
+## 👨‍💻 Muallif
+
+Created with ❤️ for Education
+
+---
+
+**Qo'shimcha yordam:** `supabase/SETUP_GUIDE.md`

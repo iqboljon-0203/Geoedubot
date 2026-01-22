@@ -108,11 +108,13 @@ export function CreateGroupModal({
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full"
+                  className="w-full justify-start text-left"
                   onClick={() => setIsMapOpen(true)}
                 >
-                  <MapPin className="w-4 h-4 mr-2" />
-                  {location ? location.address : "Manzilni tanlang"}
+                  <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
+                  <span className="truncate">
+                    {location ? location.address : "Manzilni tanlang"}
+                  </span>
                 </Button>
               </div>
             </div>

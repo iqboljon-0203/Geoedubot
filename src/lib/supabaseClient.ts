@@ -1,6 +1,18 @@
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
-const supabaseUrl = "https://vhkcokbkksbfqtctjjkt.supabase.co"; // Bu yerga o‘zingizning Supabase URL ni yozing
-const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoa2Nva2Jra3NiZnF0Y3Rqamt0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc1NjI1MDksImV4cCI6MjA2MzEzODUwOX0._u6ZDxtqsC8M8RpwiOgozYeUhO4eN6sJWkWLkzbwa3k"; // Bu yerga o‘zingizning anon key ni yozing
+// Environment variables'dan olish (.env faylidan)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    "Supabase konfiguratsiyasi topilmadi!\n\n" +
+    "Iltimos, loyiha ildizida .env fayl yarating va quyidagilarni kiriting:\n\n" +
+    "VITE_SUPABASE_URL=https://your-project-ref.supabase.co\n" +
+    "VITE_SUPABASE_ANON_KEY=your_anon_key_here\n\n" +
+    "Batafsil ma'lumot uchun SETUP.md faylini ko'ring."
+  );
+}
+
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);

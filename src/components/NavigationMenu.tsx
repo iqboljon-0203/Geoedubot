@@ -1,7 +1,7 @@
 import React from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { Button } from "./ui/button";
-import { useAuth } from "@/contexts/AuthContext";
+import { useTelegramAuth } from "@/contexts/TelegramAuthContext";
 import {
   Calendar,
   Home,
@@ -41,8 +41,7 @@ interface NavigationMenuProps {
 }
 
 export const NavigationMenu = ({ role }: NavigationMenuProps) => {
-  const { signOut } = useAuth();
-  const navigate = useNavigate();
+  const { signOut } = useTelegramAuth();
 
   const basePath =
     role === "teacher" ? "/teacher-dashboard" : "/student-dashboard";
@@ -119,7 +118,6 @@ export const NavigationMenu = ({ role }: NavigationMenuProps) => {
 
   const handleLogout = async () => {
     await signOut();
-    navigate("/auth/login");
   };
 
   return (

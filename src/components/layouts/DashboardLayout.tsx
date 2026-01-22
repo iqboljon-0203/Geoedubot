@@ -19,7 +19,7 @@ export const DashboardLayout = () => {
         </div>
       )}
       
-      <div className="dashboard-content flex-1 p-4 pb-24 md:pb-6 md:p-6">
+      <div className="dashboard-content flex-1 pb-24 md:pb-6 md:p-6 overflow-x-hidden">
         <Outlet />
       </div>
       

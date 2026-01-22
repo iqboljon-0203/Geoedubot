@@ -23,9 +23,9 @@ export function GroupModalProvider({ children }: { children: ReactNode }) {
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  // TODO: onSubmit funksiyasini kerakli joydan import qiling yoki context orqali uzating
   const handleSubmit = (data: any) => {
-    // Guruh yaratish logikasi (hozircha faqat modalni yopadi)
+    // Guruh yaratish logikasi
+    console.log("Guruh yaratish:", data);
     handleClose();
   };
 

@@ -1,138 +1,111 @@
-import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Download } from "lucide-react";
+import { Download, TrendingUp, Award, FileText } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
 import { useStudentGrades } from "@/hooks/useStudentGrades";
 
-function getGradeBadge(grade: number | null) {
-  if (grade === null) {
-    return (
-      <Badge className="bg-yellow-100 text-yellow-700 px-3 py-1 text-sm">
-        Baholanmagan
-      </Badge>
-    );
-  }
-  if (grade >= 8) {
-    return (
-      <Badge className="bg-green-100 text-green-700 px-3 py-1 text-sm">
-        {grade} / 10
-      </Badge>
-    );
-  }
-  if (grade >= 5) {
-    return (
-      <Badge className="bg-yellow-100 text-yellow-700 px-3 py-1 text-sm">
-        {grade} / 10
-      </Badge>
-    );
-  }
-  return (
-    <Badge className="bg-red-100 text-red-700 px-3 py-1 text-sm">
-      {grade} / 10
-    </Badge>
-  );
+function getGradeColor(grade: number | null) {
+  if (grade === null) return "bg-gray-100 text-gray-500 border-gray-200";
+  if (grade >= 8) return "bg-green-100 text-green-700 border-green-200";
+  if (grade >= 5) return "bg-yellow-100 text-yellow-700 border-yellow-200";
+  return "bg-red-100 text-red-700 border-red-200";
 }
 
 export default function StudentGrades() {
   const { userId } = useAuthStore();
-  const { data: answers = [], isLoading, error } = useStudentGrades(userId);
+  const { data: rawAnswers, isLoading } = useStudentGrades(userId);
+  const answers = (rawAnswers || []) as any[];
+
+  // Calculate generic Stats
+  const gradedCount = answers.filter(a => a.grade !== null).length;
+  const averageScore = gradedCount > 0 
+    ? (answers.reduce((acc, curr) => acc + (curr.grade || 0), 0) / gradedCount).toFixed(1) 
+    : "0.0";
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight mb-4">Baholar</h1>
-      <div className="space-y-6">
+    <div className="min-h-screen bg-background pb-20 relative overflow-hidden">
+      {/* Gradient Header */}
+      <div className="bg-primary-gradient pb-10 rounded-b-[2.5rem] shadow-lg pt-8 px-6 text-white relative z-10">
+         <div className="flex justify-between items-start mb-6">
+            <div>
+              <p className="text-sm opacity-80 mb-1">Academic Performance</p>
+              <h1 className="text-2xl font-black tracking-wide">MY GRADES</h1>
+            </div>
+            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
+              <Award className="w-6 h-6 text-white" />
+            </div>
+         </div>
+         
+         {/* Stats Card */}
+         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 flex justify-between items-center border border-white/20">
+            <div>
+              <p className="text-xs text-indigo-100 mb-1">Average Score</p>
+              <h2 className="text-3xl font-black">{averageScore} <span className="text-sm font-normal opacity-60">/ 10</span></h2>
+            </div>
+            <div className="h-12 w-px bg-white/20 mx-4" />
+            <div>
+               <p className="text-xs text-indigo-100 mb-1">Graded Tasks</p>
+               <h2 className="text-3xl font-black">{gradedCount}</h2>
+            </div>
+         </div>
+      </div>
+
+      <div className="px-6 -mt-6 relative z-20 space-y-4">
         {isLoading ? (
-          <div className="text-center py-12 text-lg text-muted-foreground">
-            Yuklanmoqda...
-          </div>
-        ) : error ? (
-          <div className="text-center py-12 text-lg text-red-500">
-            Xatolik: {error.message}
-          </div>
+           <div className="text-center py-8 text-muted-foreground animate-pulse">Loading grades...</div>
         ) : answers.length === 0 ? (
-          <div className="text-muted-foreground text-center py-12 text-lg">
-            Hali javob yuborilmagan
-          </div>
+           <div className="text-center py-10 bg-white rounded-[2rem] shadow-soft">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                <TrendingUp className="w-8 h-8" />
+              </div>
+              <h3 className="text-gray-900 font-bold mb-1">No Grades Yet</h3>
+              <p className="text-gray-500 text-sm">Complete tasks to see your progress.</p>
+           </div>
         ) : (
           answers.map((task) => (
-            <Card
-              key={task.id}
-              className="relative p-6 bg-gradient-to-br from-blue-50 to-white dark:from-muted dark:to-muted/60 border border-border rounded-2xl shadow-md hover:shadow-lg transition flex flex-col gap-4"
-            >
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
-                <div className="flex flex-col gap-1">
-                  <span className="text-lg font-semibold text-blue-900 dark:text-blue-200">
-                    {task.title}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {task.group}
-                  </span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge
-                      variant={
-                        task.type === "homework" ? "default" : "secondary"
-                      }
-                      className={
-                        task.type === "homework"
-                          ? "bg-blue-100 text-blue-700 px-3 py-1 text-xs"
-                          : "bg-green-100 text-green-700 px-3 py-1 text-xs"
-                      }
-                    >
-                      {task.type === "homework" ? "Uyga vazifa" : "Amaliyot"}
-                    </Badge>
+            <div key={task.id} className="card-modern bg-white p-5 hover:shadow-xl transition-all">
+               <div className="flex justify-between items-start mb-3">
+                  <div className={`px-3 py-1 rounded-lg text-xs font-bold border ${getGradeColor(task.grade)}`}>
+                    {task.grade !== null ? `${task.grade} Points` : "Pending"}
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-sm text-muted-foreground">
-                    Baho:
-                  </span>
-                  {getGradeBadge(task.grade)}
-                </div>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                <b>Sizning tavsifingiz:</b>{" "}
-                {task.studentDesc && task.studentDesc !== "EMPTY" ? (
-                  task.studentDesc
-                ) : (
-                  <span className="text-muted-foreground">Tavsif yo'q</span>
-                )}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                <b>Ustoz izohi:</b>{" "}
-                {task.teacherComment && task.teacherComment !== "EMPTY" ? (
-                  task.teacherComment
-                ) : (
-                  <span className="text-muted-foreground">Izoh yo'q</span>
-                )}
-              </div>
-              <div className="flex items-center gap-3 text-sm mt-1">
-                <Badge
-                  variant="outline"
-                  className="flex items-center gap-1 px-2 py-1 border-blue-200"
-                >
-                  <Download className="w-4 h-4 text-blue-400" />
-                  <span className="font-medium">Javob:</span>
-                  {task.answer ? (
-                    <a
-                      href={
-                        supabase.storage
-                          .from("answers")
-                          .getPublicUrl(task.answer).data.publicUrl
-                      }
-                      className="text-blue-600 underline hover:text-blue-800 transition"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Faylni ko‘rish
-                    </a>
-                  ) : (
-                    <span className="text-muted-foreground">Yuborilmagan</span>
+                  <Badge variant="outline" className="text-[10px] text-gray-500 border-gray-200 bg-gray-50">
+                    {task.type === "homework" ? "Homework" : "Internship"}
+                  </Badge>
+               </div>
+               
+               <h3 className="font-bold text-gray-800 text-lg mb-1 leading-tight">{task.title}</h3>
+               <p className="text-xs text-muted-foreground font-medium mb-3">{task.group}</p>
+               
+               {/* Progress Bar Visual (Mock) */}
+               <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4 overflow-hidden">
+                 <div 
+                   className={`h-full rounded-full ${task.grade && task.grade >= 8 ? 'bg-green-500' : task.grade && task.grade >= 5 ? 'bg-yellow-400' : 'bg-gray-300'}`} 
+                   style={{ width: task.grade ? `${task.grade * 10}%` : '0%' }}
+                 />
+               </div>
+
+               <div className="bg-gray-50 rounded-xl p-3 space-y-2 border border-gray-100">
+                  {task.teacherComment && task.teacherComment !== "EMPTY" && (
+                     <div>
+                       <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Teacher Feedback</p>
+                       <p className="text-xs text-gray-700 italic">"{task.teacherComment}"</p>
+                     </div>
                   )}
-                </Badge>
-              </div>
-            </Card>
+
+                  {task.answer && (
+                    <div className="pt-2 border-t border-gray-100">
+                      <a
+                         href={supabase.storage.from("answers").getPublicUrl(task.answer).data.publicUrl}
+                         target="_blank"
+                         rel="noopener noreferrer"
+                         className="flex items-center gap-2 text-primary text-xs font-bold hover:underline"
+                      >
+                        <FileText className="w-3 h-3" /> View Submission
+                      </a>
+                    </div>
+                  )}
+               </div>
+            </div>
           ))
         )}
       </div>

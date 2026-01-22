@@ -1,94 +1,13 @@
 import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "@/hooks/use-toast";
+import { Briefcase, Calendar, CheckCircle2, Clock, MapPin, UploadCloud, FileText } from "lucide-react";
 
-// Mock guruhlar va lokatsiyalar
-const mockGroups = [
-  {
-    id: "abc12345",
-    title: "Web Development",
-    location: { lat: 41.3, lng: 69.2 },
-  },
-  {
-    id: "def67890",
-    title: "Database Systems",
-    location: { lat: 41.4, lng: 69.3 },
-  },
-];
-
-const homeworkTasks = [
-  {
-    id: "1",
-    title: "Tadqiqot ishini topshirish",
-    deadline: "2025-06-15",
-    status: "pending",
-    group: "Tadqiqot usullari",
-    type: "homework",
-    grade: null,
-  },
-  {
-    id: "2",
-    title: "Testni yakunlash",
-    deadline: "2025-06-20",
-    status: "submitted",
-    group: "Dasturiy ta'minot muhandisligi",
-    type: "homework",
-    grade: 8,
-  },
-  {
-    id: "3",
-    title: "5-chi laboratoriya mashg'uloti",
-    deadline: "2025-06-25",
-    status: "pending",
-    group: "Ma'lumotlar bazasi tizimlari",
-    type: "homework",
-    grade: null,
-  },
-];
-
-const internshipTasks = [
-  {
-    id: "4",
-    title: "Dasturiy ta'minot sinovi",
-    date: "2025-07-01",
-    status: "pending",
-    group: "Sifat nazorati",
-    type: "internship",
-    groupId: "abc12345",
-    grade: null,
-  },
-  {
-    id: "5",
-    title: "Ma'lumotlar bazasi migratsiyasi",
-    date: "2025-07-05",
-    status: "submitted",
-    group: "Ma'lumotlar bazasi tizimlari",
-    type: "internship",
-    groupId: "def67890",
-    grade: 10,
-  },
-];
-
-function isToday(dateStr) {
+function isToday(dateStr: string) {
   const today = new Date();
   const date = new Date(dateStr);
   return (
@@ -99,42 +18,31 @@ function isToday(dateStr) {
 }
 
 const StudentTasks = () => {
-  const [openTask, setOpenTask] = useState(null);
+  const [openTask, setOpenTask] = useState<any>(null);
   const [answerDesc, setAnswerDesc] = useState("");
-  const [answerFile, setAnswerFile] = useState(null);
-  const [location, setLocation] = useState(null);
+  const [answerFile, setAnswerFile] = useState<File | null>(null);
+  const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
   const [locationError, setLocationError] = useState("");
-  const [tasks, setTasks] = useState([]);
-  const [groups, setGroups] = useState([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState("homework");
   const { userId } = useAuthStore();
 
   useEffect(() => {
     const fetchTasks = async () => {
       if (!userId) return;
-      // Student a'zo bo'lgan guruhlar
-      const { data: memberData } = await supabase
-        .from("group_members")
-        .select("group_id")
-        .eq("user_id", userId);
+      const { data: memberData } = await supabase.from("group_members").select("group_id").eq("user_id", userId);
+      
       if (memberData && memberData.length > 0) {
         const groupIds = memberData.map((m) => m.group_id);
-        setGroups(groupIds);
-        // Shu guruhlarga tegishli barcha topshiriqlar
-        const { data: tasksData } = await supabase
-          .from("tasks")
-          .select("*")
-          .in("group_id", groupIds)
-          .order("created_at", { ascending: false });
+        const { data: tasksData } = await supabase.from("tasks").select("*").in("group_id", groupIds).order("created_at", { ascending: false });
         setTasks(tasksData || []);
-      } else {
-        setGroups([]);
-        setTasks([]);
       }
     };
     fetchTasks();
   }, [userId]);
 
-  const handleOpen = (task) => {
+  const handleOpen = (task: any) => {
     setOpenTask(task);
     setAnswerDesc("");
     setAnswerFile(null);
@@ -142,7 +50,7 @@ const StudentTasks = () => {
     setLocationError("");
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = (e: any) => {
     if (e.target.files && e.target.files[0]) {
       setAnswerFile(e.target.files[0]);
     }
@@ -150,7 +58,7 @@ const StudentTasks = () => {
 
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
-      setLocationError("Brauzeringiz geolokatsiyani qo'llab-quvvatlamaydi");
+      setLocationError("Browser geolocation not supported");
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -158,274 +66,173 @@ const StudentTasks = () => {
         setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setLocationError("");
       },
-      () => {
-        setLocationError("Lokatsiyani aniqlab bo'lmadi");
-      }
+      () => setLocationError("Location access denied")
     );
   };
 
-  const handleSubmit = async (task) => {
-    // Majburiy maydonlar tekshiruvi
-    if (!answerDesc.trim()) {
-      toast({
-        title: "Xatolik",
-        description: "Tavsif maydoni to'ldirilishi shart!",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!answerFile) {
-      toast({
-        title: "Xatolik",
-        description: "Fayl yuklash majburiy!",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleSubmit = async (task: any) => {
+    if (!answerDesc.trim()) return toast({ title: "Error", description: "Description required", variant: "destructive" });
+    if (!answerFile) return toast({ title: "Error", description: "File required", variant: "destructive" });
+    
     if (task.type === "internship") {
       if (!location) {
-        setLocationError("Lokatsiyani aniqlang");
-        return;
+         setLocationError("Please verify your location");
+         return;
       }
-      // Guruh lokatsiyasini olish
-      const { data: groupData } = await supabase
-        .from("groups")
-        .select("lat, lng")
-        .eq("id", task.group_id)
-        .single();
+      // Check distance (simplified logic)
+      const { data: groupData } = await supabase.from("groups").select("lat, lng").eq("id", task.group_id).single();
       if (groupData) {
-        const groupLoc = { lat: groupData.lat, lng: groupData.lng };
-        const dist = Math.sqrt(
-          Math.pow(location.lat - groupLoc.lat, 2) +
-            Math.pow(location.lng - groupLoc.lng, 2)
-        );
-        if (dist > 0.02) {
-          setLocationError("Siz kerakli joyda emassiz!");
-          return;
-        }
+         const latDiff = Math.abs(location.lat - groupData.lat);
+         const lngDiff = Math.abs(location.lng - groupData.lng);
+         if (latDiff > 0.02 || lngDiff > 0.02) {
+             setLocationError("You are not at the required location!");
+             return; 
+         }
       }
     }
+
     let file_url = null;
     if (answerFile) {
       const ext = answerFile.name.split(".").pop();
       const filePath = `${userId}/${task.id}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("answers")
-        .upload(filePath, answerFile, {
-          upsert: false,
-          contentType: answerFile.type || undefined,
-        });
-      if (uploadError) {
-        toast({
-          title: "Fayl yuklashda xatolik",
-          description: uploadError.message,
-          variant: "destructive",
-        });
-        return;
-      }
+      const { error } = await supabase.storage.from("answers").upload(filePath, answerFile);
+      if (error) return toast({ title: "Upload Error", description: error.message, variant: "destructive" });
       file_url = filePath;
     }
-    // Javobni answers jadvaliga yozish
-    const { error: insertError } = await supabase.from("answers").insert([
-      {
-        task_id: task.id,
-        user_id: userId,
-        description: answerDesc,
-        file_url,
-        location_lat: location?.lat || null,
-        location_lng: location?.lng || null,
-      },
-    ]);
+
+    const { error: insertError } = await supabase.from("answers").insert([{
+       task_id: task.id,
+       user_id: userId,
+       description: answerDesc,
+       file_url,
+       location_lat: location?.lat || null,
+       location_lng: location?.lng || null,
+    }]);
+
     if (insertError) {
-      toast({
-        title: "Javob yuborishda xatolik",
-        description: insertError.message,
-        variant: "destructive",
-      });
+       toast({ title: "Error", description: insertError.message, variant: "destructive" });
     } else {
-      toast({ title: "Muvaffaqiyatli", description: "Javob yuborildi!" });
-      setOpenTask(null);
+       toast({ title: "Success", description: "Task submitted!" });
+       setOpenTask(null);
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Topshiriqlar</h1>
-      </div>
+  const filteredTasks = tasks.filter(t => t.type === activeTab);
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Topshiriqlar</CardTitle>
-          <CardDescription>
-            Barcha topshiriqlarni ko'rish va boshqarish
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="homework" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="homework">Uyga vazifalar</TabsTrigger>
-              <TabsTrigger value="internship">Amaliyot</TabsTrigger>
-            </TabsList>
-            <TabsContent value="homework" className="space-y-4">
-              {tasks
-                .filter((task) => task.type === "homework")
-                .map((task) => (
-                  <div
-                    key={task.id}
-                    className="border border-border rounded-lg p-4 flex flex-col md:flex-row justify-between md:items-center gap-4"
-                  >
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{task.title}</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
-                          Uyga vazifa
+  return (
+    <div className="min-h-screen bg-background pb-20 relative overflow-hidden">
+       {/* Gradient Header */}
+       <div className="bg-primary-gradient h-48 w-full rounded-b-[2.5rem] shadow-lg absolute top-0 z-0 content-['']" />
+       
+       <div className="relative z-10 pt-8 px-6">
+         <div className="flex justify-between items-center mb-8 text-white">
+            <div>
+              <p className="opacity-80 text-sm font-medium mb-1">My Assignments</p>
+              <h1 className="text-3xl font-black">Tasks</h1>
+            </div>
+            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
+              <Briefcase className="w-6 h-6 text-white" />
+            </div>
+         </div>
+         
+         {/* Tabs */}
+         <div className="flex p-1 bg-white/50 backdrop-blur-sm rounded-xl mb-6 shadow-sm">
+            <button 
+              onClick={() => setActiveTab("homework")}
+              className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'homework' ? 'bg-white shadow text-primary' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Homework
+            </button>
+            <button 
+              onClick={() => setActiveTab("internship")}
+              className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'internship' ? 'bg-white shadow text-teal-600' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Internship
+            </button>
+         </div>
+
+         <div className="space-y-4">
+            {filteredTasks.length > 0 ? (
+               filteredTasks.map((task) => (
+                  <div key={task.id} className="card-modern bg-white p-5 hover:shadow-xl transition-shadow">
+                     <div className="flex justify-between items-start mb-2">
+                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${task.type === 'homework' ? 'bg-indigo-50 text-indigo-600' : 'bg-teal-50 text-teal-600'}`}>
+                           {task.type}
                         </span>
-                      </div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {task.group} • Muddati{" "}
-                        {task.deadline
-                          ? new Date(task.deadline).toLocaleDateString()
-                          : "-"}
-                      </div>
-                    </div>
-                    <Button
-                      className="min-w-[110px]"
-                      onClick={() => handleOpen(task)}
-                    >
-                      Topshirish
-                    </Button>
-                    <Dialog
-                      open={openTask?.id === task.id}
-                      onOpenChange={() => setOpenTask(null)}
-                    >
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Javob yuborish</DialogTitle>
-                          <DialogDescription>
-                            Uyga vazifa uchun javob yuboring.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <Input
-                          placeholder="Tavsif..."
-                          value={answerDesc}
-                          onChange={(e) => setAnswerDesc(e.target.value)}
-                          className="mb-2"
-                        />
-                        <Input
-                          type="file"
-                          onChange={handleFileChange}
-                          className="mb-2"
-                        />
-                        <DialogFooter>
-                          <Button onClick={() => handleSubmit(task)}>
-                            Yuborish
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                        {task.type === 'internship' && isToday(task.date) && (
+                           <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded">
+                             <CheckCircle2 className="w-3 h-3" /> Today
+                           </span>
+                        )}
+                     </div>
+                     
+                     <h3 className="font-bold text-gray-800 text-lg mb-1">{task.title}</h3>
+                     <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {task.type === 'homework' ? `Due ${new Date(task.deadline).toLocaleDateString()}` : `Date: ${new Date(task.date).toLocaleDateString()}`}
+                     </p>
+                     
+                     <Button 
+                       onClick={() => handleOpen(task)}
+                       className={`w-full rounded-xl py-5 font-bold shadow-none ${task.type === 'internship' && !isToday(task.date) ? 'opacity-50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'}`}
+                       disabled={task.type === 'internship' && !isToday(task.date)}
+                     >
+                       {task.type === 'internship' && !isToday(task.date) ? 'Locked' : 'Submit Task'}
+                     </Button>
                   </div>
-                ))}
-            </TabsContent>
-            <TabsContent value="internship" className="space-y-4">
-              {tasks
-                .filter((task) => task.type === "internship")
-                .map((task) => (
-                  <div
-                    key={task.id}
-                    className="border border-border rounded-lg p-4 flex flex-col md:flex-row justify-between md:items-center gap-4"
-                  >
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{task.title}</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-800">
-                          Amaliyot
-                        </span>
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${
-                            isToday(task.date)
-                              ? "bg-green-100 text-green-800"
-                              : "bg-blue-100 text-blue-800"
-                          }`}
-                        >
-                          {isToday(task.date) ? "Bugun" : "Kelgusi"}
-                        </span>
-                      </div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {task.group} • Rejada{" "}
-                        {task.date
-                          ? new Date(task.date).toLocaleDateString()
-                          : "-"}
-                      </div>
-                    </div>
-                    <Button
-                      className="min-w-[110px]"
-                      onClick={() => handleOpen(task)}
-                      disabled={!isToday(task.date)}
-                    >
-                      Topshirish
-                    </Button>
-                    <Dialog
-                      open={openTask?.id === task.id}
-                      onOpenChange={() => setOpenTask(null)}
-                    >
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Javob yuborish</DialogTitle>
-                          <DialogDescription>
-                            Amaliyot topshirig'i uchun faqat amaliyot kuni va
-                            kerakli joyda bo'lsangiz javob yuborishingiz mumkin.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <Input
-                          placeholder="Tavsif..."
-                          value={answerDesc}
-                          onChange={(e) => setAnswerDesc(e.target.value)}
-                          className="mb-2"
-                          disabled={!isToday(task.date)}
-                        />
-                        <Input
-                          type="file"
-                          onChange={handleFileChange}
-                          className="mb-2"
-                          disabled={!isToday(task.date)}
-                        />
-                        <div className="mb-2">
-                          <Button
-                            type="button"
-                            onClick={handleGetLocation}
-                            disabled={!isToday(task.date)}
-                          >
-                            Lokatsiyani aniqlash
-                          </Button>
-                          {location && (
-                            <div className="text-xs mt-1 text-green-600">
-                              Lokatsiya: {location.lat.toFixed(4)},{" "}
-                              {location.lng.toFixed(4)}
-                            </div>
-                          )}
-                          {locationError && (
-                            <div className="text-xs mt-1 text-red-600">
-                              {locationError}
-                            </div>
-                          )}
-                        </div>
-                        <DialogFooter>
-                          <Button
-                            onClick={() => handleSubmit(task)}
-                            disabled={!isToday(task.date)}
-                          >
-                            Yuborish
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+               ))
+            ) : (
+              <div className="text-center py-10 bg-white rounded-[2rem] shadow-soft">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                    <FileText className="w-8 h-8" />
                   </div>
-                ))}
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+                  <h3 className="text-gray-900 font-bold mb-1">No Tasks</h3>
+                  <p className="text-gray-500 text-sm">You are all caught up!</p>
+               </div>
+            )}
+         </div>
+       </div>
+
+       <Dialog open={!!openTask} onOpenChange={() => setOpenTask(null)}>
+        <DialogContent className="rounded-2xl max-w-sm mx-4">
+          <DialogHeader>
+            <DialogTitle>Submit Answer</DialogTitle>
+            <DialogDescription>
+              {openTask?.type === 'internship' ? 'Internalships require location verification.' : 'Upload your work below.'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 pt-2">
+             <div>
+                <Input placeholder="Description or comments..." value={answerDesc} onChange={(e) => setAnswerDesc(e.target.value)} className="rounded-xl" />
+             </div>
+             
+             <div className="bg-gray-50 p-4 rounded-xl border border-dashed border-gray-300 text-center cursor-pointer hover:bg-gray-100 transition relative">
+                <input type="file" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+                <UploadCloud className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-xs text-gray-500 font-medium">{answerFile ? answerFile.name : "Tap to upload file"}</p>
+             </div>
+
+             {openTask?.type === 'internship' && (
+                <div className="bg-blue-50 p-3 rounded-xl flex items-center justify-between">
+                   <div className="text-blue-700 text-xs font-bold flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />
+                      {location ? "Location Verified" : "Location Required"}
+                   </div>
+                   <Button size="sm" variant="outline" onClick={handleGetLocation} className="h-8 rounded-lg bg-white border-blue-200 text-blue-600 hover:bg-blue-50">
+                      Check
+                   </Button>
+                </div>
+             )}
+             
+             {(locationError) && <p className="text-xs text-red-500 font-bold text-center">{locationError}</p>}
+          </div>
+
+          <DialogFooter className="mt-2">
+            <Button onClick={() => handleSubmit(openTask)} className="w-full rounded-xl">Submit</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
