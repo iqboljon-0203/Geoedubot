@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Locate } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   MapContainer,
@@ -72,26 +72,29 @@ export function LocationPicker({
   const [isSearching, setIsSearching] = useState(false);
 
   const handleLocationSelect = (lat: number, lng: number) => {
-    // Reverse geocoding using Photon API to avoid CORS issues
-    fetch(
-      `https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}`
-    )
+    // Reverse geocoding using Photon API (Komoot) - No CORS issues
+    fetch(`https://photon.komoot.io/reverse?lon=${lng}&lat=${lat}`)
       .then((res) => res.json())
       .then((data) => {
-        let address = "Tanlangan manzil";
-        if (data && data.features && data.features.length > 0) {
-            const props = data.features[0].properties;
-            address = [props.name, props.street, props.city, props.country]
-              .filter(Boolean)
-              .join(", ");
-        } else {
-             address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        
+        if (data.features && data.features.length > 0) {
+          const props = data.features[0].properties;
+          address = [
+            props.name,
+            props.street,
+            props.housenumber,
+            props.district,
+            props.city,
+            props.state,
+            props.country
+          ].filter(Boolean).join(", ");
         }
 
         const newLocation = {
           lat,
           lng,
-          address: address,
+          address,
         };
         setSelectedLocation(newLocation);
       })
@@ -106,6 +109,40 @@ export function LocationPicker({
       });
   };
 
+  const handleCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Xatolik",
+        description: "Geolokatsiya qo'llab-quvvatlanmaydi",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSearching(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        handleLocationSelect(latitude, longitude);
+        setIsSearching(false);
+      },
+      (error) => {
+        console.error(error);
+        toast({
+          title: "Xatolik",
+          description: "Joylashuvni aniqlab bo'lmadi. Ruxsat berilganligini tekshiring.",
+          variant: "destructive",
+        });
+        setIsSearching(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  };
+
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
       toast({
@@ -118,25 +155,31 @@ export function LocationPicker({
 
     setIsSearching(true);
     try {
-      // Use Photon API instead of direct Nominatim to avoid strict CORS/User-Agent issues
+      // Using Photon API for search
       const response = await fetch(
         `https://photon.komoot.io/api/?q=${encodeURIComponent(searchQuery)}&limit=1`
       );
       const data = await response.json();
 
-      if (data && data.features && data.features.length > 0) {
+      if (data.features && data.features.length > 0) {
         const feature = data.features[0];
-        const [lng, lat] = feature.geometry.coordinates;
-        
+        const [lng, lat] = feature.geometry.coordinates; // GeoJSON is [lon, lat]
         const props = feature.properties;
-        const address = [props.name, props.city, props.country]
-          .filter(Boolean)
-          .join(", ");
+        
+        const address = [
+            props.name,
+            props.street,
+            props.housenumber,
+            props.district,
+            props.city,
+            props.state,
+            props.country
+        ].filter(Boolean).join(", ");
 
         const location = {
-          lat: lat,
-          lng: lng,
-          address: address || "Manzil topildi",
+          lat,
+          lng,
+          address: address || searchQuery,
         };
         setSelectedLocation(location);
       } else {
@@ -183,6 +226,9 @@ export function LocationPicker({
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             />
+            <Button onClick={handleCurrentLocation} variant="outline" title="Mening joylashuvim" disabled={isSearching}>
+                <Locate className="w-4 h-4" />
+            </Button>
             <Button onClick={handleSearch} disabled={isSearching}>
               <Search className="w-4 h-4" />
             </Button>

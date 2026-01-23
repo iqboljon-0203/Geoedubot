@@ -48,11 +48,12 @@ export function useTelegram(): UseTelegramResult {
   }, []);
 
   const useTestUser = () => {
+    // Student ID ga o'tkazish
     setUser({
-      id: 123456789,
+      id: 999999999,
       first_name: 'Test',
-      last_name: 'User',
-      username: 'testuser',
+      last_name: 'Student',
+      username: 'teststudent',
       language_code: 'uz',
     });
     setIsReady(true);

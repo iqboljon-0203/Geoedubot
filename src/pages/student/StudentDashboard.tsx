@@ -1,217 +1,270 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Trophy, BookOpen, Clock, ChevronRight, CheckCircle2, FileText, ArrowRight, Search } from "lucide-react";
+import {
+  BookOpen,
+  CheckCircle2,
+  Clock,
+  Bell,
+  Plus,
+  Flame
+} from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
-import { supabase } from "@/lib/supabaseClient";
 import { useStudentDashboardData } from "@/hooks/useStudentDashboardData";
 
 interface Task {
-  type: "homework" | "internship";
   id: string;
   title: string;
+  description?: string;
+  type: "homework" | "internship";
   deadline?: string;
   date?: string;
-  status: string;
-  group: string;
-}
-
-interface LastAnswer {
-  id: string;
-  taskTitle: string;
-  group: string;
-  date: string;
-  file_url?: string;
+  group?: string;
+  hasSubmitted?: boolean;
+  score?: number | null;
 }
 
 interface StudentDashboardData {
-  stats: { completed: number; pending: number; upcomingInternships: number };
-  upcomingTasks: Task[];
-  lastAnswers: LastAnswer[];
+  stats: {
+    completedTasks: number;
+    pendingTasks: number;
+    averageScore: number;
+  };
+  recentTasks: Task[];
+  groups: any[];
 }
 
 const StudentDashboard = () => {
-  const { name, userId } = useAuthStore();
+  const { userId, name } = useAuthStore();
   const navigate = useNavigate();
 
   const { data, isLoading } = useStudentDashboardData(userId) as {
     data: StudentDashboardData | undefined;
     isLoading: boolean;
+    error: unknown;
   };
-  
-  const upcomingTasks = data?.upcomingTasks || [];
-  const lastAnswers = data?.lastAnswers || [];
+
+  const stats = data?.stats || {
+    completedTasks: 0,
+    pendingTasks: 0,
+    averageScore: 0,
+  };
+
+  const recentTasks = data?.recentTasks || [];
+
+  const getTaskStatus = (task: Task) => {
+    if (task.hasSubmitted && task.score !== null && task.score !== undefined) {
+      return "done";
+    }
+    
+    const taskDate = task.type === "homework" ? task.deadline : task.date;
+    if (!taskDate) return "upcoming";
+    
+    const dueDate = new Date(taskDate);
+    const now = new Date();
+    const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysUntilDue <= 2 && !task.hasSubmitted) {
+      return "due_soon";
+    }
+    
+    return "upcoming";
+  };
+
+  const getStatusBadge = (status: string) => {
+    const badges = {
+      due_soon: {
+        bg: "bg-red-100",
+        text: "text-red-700",
+        label: "DUE SOON",
+      },
+      done: {
+        bg: "bg-green-100",
+        text: "text-green-700",
+        label: "DONE",
+      },
+      upcoming: {
+        bg: "bg-gray-100",
+        text: "text-gray-700",
+        label: "UPCOMING",
+      },
+    };
+    const badge = badges[status as keyof typeof badges] || badges.upcoming;
+    return (
+      <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-bold ${badge.bg} ${badge.text} whitespace-nowrap`}>
+        {badge.label}
+      </span>
+    );
+  };
+
+  const getStatusIcon = (status: string) => {
+    if (status === "due_soon") {
+      return <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-red-100 flex items-center justify-center flex-shrink-0">
+        <span className="text-2xl">⏰</span>
+      </div>;
+    }
+    if (status === "done") {
+      return <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-green-100 flex items-center justify-center flex-shrink-0">
+        <span className="text-2xl">✅</span>
+      </div>;
+    }
+    return <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+      <span className="text-2xl">📚</span>
+    </div>;
+  };
+
+  // Calculate progress percentage
+  const totalTasks = stats.completedTasks + stats.pendingTasks;
+  const progressPercentage = totalTasks > 0 
+    ? Math.round((stats.completedTasks / totalTasks) * 100) 
+    : 0;
+
+  // Mock streak for now (can be calculated from submission dates later)
+  const streakDays = 12;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24 relative overflow-hidden font-sans">
-      {/* Deep Purple Header */}
-      <div className="absolute top-0 left-0 w-full h-[320px] bg-[#4F46E5] rounded-b-[3rem] shadow-xl z-0" />
-      
-      <div className="relative z-10 px-6 pt-10">
-        {/* Header Content */}
-        <div className="flex justify-between items-start mb-6">
-          <div className="flex items-center gap-4">
-             <div className="w-14 h-14 rounded-full bg-orange-600 flex items-center justify-center text-white text-xl font-bold border-2 border-white shadow-lg">
-                {name?.charAt(0) || 'S'}
-             </div>
-             <div>
-               <p className="text-white/80 text-sm font-medium mb-0.5">Good morning,</p>
-               <h1 className="text-white text-2xl font-serif font-bold tracking-wide leading-tight max-w-[200px]">
-                 {name || "Student"}
-               </h1>
-             </div>
-          </div>
-          <button className="bg-white/10 backdrop-blur-md p-3 rounded-full text-white hover:bg-white/20 transition shadow-inner relative">
-            <Bell className="w-6 h-6" />
-            <span className="absolute top-3 right-3 w-2 h-2 bg-red-400 rounded-full border-2 border-[#4F46E5]" />
-          </button>
-        </div>
-
-        {/* Search Bar */}
-        <div className="relative mb-8">
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/70">
-            <Search className="w-5 h-5" />
-          </div>
-          <input 
-            type="text" 
-            placeholder="Search tasks, courses..." 
-            className="w-full h-12 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl pl-12 pr-4 text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-white/30 transition-all"
-          />
-        </div>
-
-        {/* Stats Grid - 2x2 */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
-           {/* GPA Card */}
-           <div className="bg-white rounded-[2rem] p-5 shadow-sm flex flex-col gap-4 relative overflow-hidden">
-              <div className="flex justify-between items-start">
-                 <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
-                    <Trophy className="w-5 h-5" />
-                 </div>
-                 <span className="bg-green-50 text-green-600 text-[10px] font-bold px-2 py-1 rounded-full flex items-center">
-                    +0.2 ↗
-                 </span>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50/30 to-blue-50/30 pb-20">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+                <span className="text-white font-bold text-lg">
+                  {name?.charAt(0) || "W"}
+                </span>
+                <div className="absolute w-3 h-3 bg-green-500 rounded-full border-2 border-white -bottom-0.5 -right-0.5"></div>
               </div>
               <div>
-                 <h3 className="text-3xl font-serif font-bold text-gray-900 leading-none mb-1">3.85</h3>
-                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Current GPA</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">LEVEL 12</p>
+                <h1 className="text-lg font-bold text-gray-900">{name || "Student"}</h1>
               </div>
-           </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button className="p-2 hover:bg-gray-100 rounded-xl transition-colors relative">
+                <Bell className="w-5 h-5 text-gray-600" />
+                <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-           {/* Active Courses Card */}
-           <div className="bg-white rounded-[2rem] p-5 shadow-sm flex flex-col gap-4">
-              <div className="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center text-teal-600">
-                 <BookOpen className="w-5 h-5" />
-              </div>
-              <div className="mt-auto">
-                 <h3 className="text-3xl font-serif font-bold text-gray-900 leading-none mb-1">6</h3>
-                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Active Courses</p>
-              </div>
-           </div>
-
-           {/* Attendance Card */}
-           <div className="bg-white rounded-[2rem] p-5 shadow-sm flex flex-col items-center justify-center text-center gap-1">
-              <span className="text-indigo-600 font-bold text-sm bg-indigo-50 px-2 py-0.5 rounded mb-2">95%</span>
-              <h3 className="text-2xl font-serif font-bold text-gray-900">95%</h3>
-              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Attendance</p>
-           </div>
-
-           {/* Study Time Card */}
-           <div className="bg-white rounded-[2rem] p-5 shadow-sm flex flex-col items-center justify-center text-center gap-1">
-               <span className="text-teal-600 font-bold text-sm bg-teal-50 px-2 py-0.5 rounded mb-2">72%</span>
-               <h3 className="text-2xl font-serif font-bold text-gray-900">124h</h3>
-               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Study Time</p>
-           </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Progress Card */}
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <h2 className="text-base sm:text-lg font-bold text-gray-900">Course Progress</h2>
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+              <Flame className="w-4 h-4 text-orange-500 flex-shrink-0" />
+              <span className="font-bold text-orange-500 whitespace-nowrap">{streakDays} Day Streak</span>
+            </div>
+          </div>
+          <div className="flex items-end gap-2 mb-2">
+            <div className="text-4xl sm:text-5xl font-bold text-gray-900">{progressPercentage}</div>
+            <div className="text-xl sm:text-2xl font-bold text-gray-400 mb-1">%</div>
+          </div>
+          <div className="mb-3 sm:mb-4">
+            <div className="w-full bg-gray-100 rounded-full h-2">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${progressPercentage}%` }}
+              ></div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-600">
+            <span className="truncate mr-2">Progress through your courses</span>
+            <span className="whitespace-nowrap">
+              {totalTasks > 0 ? `${stats.pendingTasks} tasks remaining` : 'No tasks yet'}
+            </span>
+          </div>
         </div>
 
-        {/* Upcoming Tasks Title */}
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-serif font-bold text-gray-800 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-indigo-600 fill-indigo-600" />
-            Upcoming Tasks
-          </h2>
-          <button className="text-indigo-500 text-xs font-bold uppercase tracking-wider hover:underline" onClick={() => navigate('/student-dashboard/tasks')}>
-             View Schedule
-          </button>
-        </div>
+        {/* Current Quests */}
+        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h2 className="text-base sm:text-xl font-bold text-gray-900">CURRENT QUESTS</h2>
+            <button 
+              onClick={() => navigate("/student-dashboard/tasks")}
+              className="text-blue-600 hover:text-blue-700 font-semibold text-xs sm:text-sm whitespace-nowrap"
+            >
+              View All
+            </button>
+          </div>
 
-        {/* Horizontal Tasks List */}
-        <div className="flex overflow-x-auto gap-4 pb-6 no-scrollbar -mx-6 px-6 mb-2">
-          {upcomingTasks.length > 0 ? (
-            upcomingTasks.map((task) => (
-              <div key={task.id} className="min-w-[280px] bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 relative group active:scale-95 transition-transform duration-200">
-                 <div className="flex justify-between items-start mb-4">
-                    <span className="bg-amber-50 text-amber-600 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide">
-                      Pending
-                    </span>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                      Due Tomorrow
-                    </span>
-                 </div>
-                 
-                 <h3 className="font-serif font-bold text-xl text-gray-900 mb-2 leading-tight">
-                    {task.title}
-                 </h3>
-                 <p className="text-xs text-gray-500 mb-6 line-clamp-2">
-                   Chapter 4: Integration by parts and substitutions.
-                 </p>
-                 
-                 <div className="flex items-center justify-between mt-auto">
-                    <div className="flex items-center gap-2">
-                       <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                          <BookOpen className="w-4 h-4" />
-                       </div>
-                       <span className="text-xs font-bold text-gray-700">{task.group}</span>
-                    </div>
-                    <button className="w-10 h-10 rounded-full bg-teal-400 text-white flex items-center justify-center shadow-lg shadow-teal-200 group-hover:bg-teal-500 transition-colors">
-                       <ArrowRight className="w-5 h-5" />
-                    </button>
-                 </div>
+          {isLoading ? (
+            <div className="text-center py-12">
+              <div className="inline-block w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : recentTasks.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                <BookOpen className="w-8 h-8 text-gray-400" />
               </div>
-            ))
+              <p className="text-gray-600">Hali topshiriq yo'q</p>
+            </div>
           ) : (
-            <div className="min-w-full text-center py-10 bg-white rounded-[2rem] text-gray-400 text-sm">
-               No upcoming tasks.
+            <div className="space-y-2 sm:space-y-3">
+              {recentTasks.slice(0, 5).map((task) => {
+                const status = getTaskStatus(task);
+                return (
+                  <div
+                    key={task.id}
+                    className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl hover:bg-gray-50 transition-colors cursor-pointer group"
+                    onClick={() => navigate(`/student-dashboard/tasks/${task.id}`)}
+                  >
+                    {getStatusIcon(status)}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-sm sm:text-base text-gray-900 truncate">{task.title}</h3>
+                      <p className="text-xs sm:text-sm text-gray-600 truncate">
+                        {task.description || (task.type === "homework" ? "Uyga vazifa" : "Amaliyot")}
+                      </p>
+                    </div>
+                    {getStatusBadge(status)}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* Recent Activity Title */}
-        <h2 className="text-xl font-serif font-bold text-gray-800 mb-4">Recent Activity</h2>
-        
-        {/* Recent Activity List */}
-        <div className="space-y-4 mb-8">
-           {lastAnswers.length > 0 ? (
-               lastAnswers.map((ans) => (
-                 <div key={ans.id} className="bg-white rounded-[1.5rem] p-4 shadow-sm border border-gray-50 flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-green-600 flex-shrink-0">
-                       <CheckCircle2 className="w-6 h-6" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                       <div className="flex justify-between items-center mb-1">
-                          <h4 className="font-serif font-bold text-gray-900 truncate">Task Submitted</h4>
-                          <span className="text-[10px] text-gray-400 font-medium">2h ago</span>
-                       </div>
-                       <p className="text-xs text-gray-500 truncate">
-                          You submitted <span className="text-green-600 font-bold">{ans.taskTitle}</span>
-                       </p>
-                    </div>
-                 </div>
-               ))
-           ) : (
-             <div className="bg-white rounded-[1.5rem] p-4 shadow-sm border border-gray-50 flex items-center gap-4">
-                 <div className="w-12 h-12 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-600 flex-shrink-0">
-                    <Trophy className="w-6 h-6" />
-                 </div>
-                 <div className="flex-1">
-                    <div className="flex justify-between items-center mb-1">
-                       <h4 className="font-serif font-bold text-gray-900">Welcome!</h4>
-                       <span className="text-[10px] text-gray-400 font-medium">Just now</span>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                       Start your journey by joining a group.
-                    </p>
-                 </div>
-             </div>
-           )}
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-blue-100 flex items-center justify-center mb-3 sm:mb-4">
+              <span className="text-2xl">🎯</span>
+            </div>
+            <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{stats.completedTasks}</div>
+            <div className="text-xs sm:text-sm text-gray-600">Completed Tasks</div>
+          </div>
+
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-orange-100 flex items-center justify-center mb-3 sm:mb-4">
+              <span className="text-2xl">⏰</span>
+            </div>
+            <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{stats.pendingTasks}</div>
+            <div className="text-xs sm:text-sm text-gray-600">Pending Tasks</div>
+          </div>
+
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100 col-span-2 lg:col-span-1">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-purple-100 flex items-center justify-center mb-3 sm:mb-4">
+              <span className="text-2xl">🏆</span>
+            </div>
+            <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
+              {stats.averageScore > 0 ? stats.averageScore.toFixed(1) : "N/A"}
+            </div>
+            <div className="text-xs sm:text-sm text-gray-600">Average Score</div>
+          </div>
         </div>
+      </div>
+
+      {/* Floating Action Button */}
+      <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50">
+        <button
+          onClick={() => navigate("/student-dashboard/groups")}
+          className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 shadow-lg hover:shadow-xl flex items-center justify-center text-white transition-all hover:scale-110"
+        >
+          <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
+        </button>
       </div>
     </div>
   );

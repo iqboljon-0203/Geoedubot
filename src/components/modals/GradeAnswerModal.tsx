@@ -35,13 +35,13 @@ export function GradeAnswerModal({
   answer,
   onSave,
 }: GradeAnswerModalProps) {
-  const [score, setScore] = useState<number>(answer?.score ?? 0);
+  const [score, setScore] = useState<number | string>(answer?.score ?? "");
   const [teacherComment, setTeacherComment] = useState<string>(
     answer?.teacher_comment ?? ""
   );
 
   useEffect(() => {
-    setScore(answer?.score ?? 0);
+    setScore(answer?.score ?? ""); // 0 emas, bo'sh string agar null bo'lsa
     setTeacherComment(answer?.teacher_comment ?? "");
   }, [answer, isOpen]);
 
@@ -64,6 +64,7 @@ export function GradeAnswerModal({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
+          {/* ... (existing fields) */}
           <div>
             <b>Student:</b> {answer.student}
           </div>
@@ -107,7 +108,11 @@ export function GradeAnswerModal({
             min={0}
             max={10}
             value={score}
-            onChange={(e) => setScore(Number(e.target.value))}
+            onChange={(e) => {
+                const val = e.target.value;
+                if (val === "") setScore("");
+                else setScore(Number(val));
+            }}
           />
           <Label>Izoh (studentga tavsif)</Label>
           <textarea
@@ -119,7 +124,7 @@ export function GradeAnswerModal({
           />
         </div>
         <DialogFooter>
-          <Button onClick={() => onSave(score, teacherComment)}>Saqlash</Button>
+          <Button onClick={() => onSave(Number(score) || 0, teacherComment)}>Saqlash</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

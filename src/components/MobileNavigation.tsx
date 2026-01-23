@@ -1,66 +1,156 @@
 import { NavLink } from "react-router-dom";
-import { Home, BookOpen, CheckSquare, User } from "lucide-react";
+import { Home, List, Calendar, Settings, User, FileText } from "lucide-react";
+import { useTelegramAuth } from "@/contexts/TelegramAuthContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuthStore } from "@/store/authStore";
 
 interface MobileNavigationProps {
   role: "teacher" | "student";
 }
 
 const MobileNavigation = ({ role }: MobileNavigationProps) => {
-  const basePath = role === "teacher" ? "/teacher-dashboard" : "/student-dashboard";
+  const { signOut } = useTelegramAuth();
+  const { name } = useAuthStore();
   
-  const navItems = [
-    {
-      path: basePath,
-      label: "Home",
-      icon: Home,
-      exact: true
-    },
-    {
-      path: `${basePath}/groups`,
-      label: "Courses",
-      icon: BookOpen,
-    },
-    {
-      path: `${basePath}/tasks`,
-      label: "Tasks",
-      icon: CheckSquare,
-    },
-    {
-      path: "/profile",
-      label: "Profile",
-      icon: User,
-    }
-  ];
+  const basePath =
+    role === "teacher" ? "/teacher-dashboard" : "/student-dashboard";
+  
+  const handleLogout = async () => {
+    await signOut();
+  };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pointer-events-none">
-      <div className="glass-card rounded-[2rem] shadow-soft mx-auto max-w-md pointer-events-auto">
-        <div className="flex justify-between items-center px-6 py-3">
-          {navItems.map((item) => (
-            <NavLink 
-              key={item.path}
-              to={item.path}
-              end={item.exact}
-              className={({ isActive }) =>
-                `flex flex-col items-center justify-center p-2 rounded-2xl transition-all duration-300 relative ${
-                  isActive 
-                    ? "text-primary transform -translate-y-1" 
-                    : "text-muted-foreground hover:text-primary/70"
-                }`
-              }
+    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 shadow-lg">
+      <div className="flex justify-around items-center h-16">
+        <NavLink 
+          to={basePath} 
+          className={({ isActive }) =>
+            `flex flex-col items-center justify-center text-xs p-2 rounded-md ${
+              isActive ? "text-primary" : "text-muted-foreground"
+            }`
+          }
+          end
+        >
+          <Home className="h-5 w-5 mb-1" />
+          <span>Dashboard</span>
+        </NavLink>
+        
+        <NavLink 
+          to={`${basePath}/tasks`}
+          className={({ isActive }) =>
+            `flex flex-col items-center justify-center text-xs p-2 rounded-md ${
+              isActive ? "text-primary" : "text-muted-foreground"
+            }`
+          }
+        >
+          <List className="h-5 w-5 mb-1" />
+          <span>Topshiriqlar</span>
+        </NavLink>
+
+        {role === "student" && (
+          <NavLink
+            to={`${basePath}/groups`}
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center text-xs p-2 rounded-md ${
+                isActive ? "text-primary" : "text-muted-foreground"
+              }`
+            }
+          >
+            <List className="h-5 w-5 mb-1" />
+            <span>Guruhlar</span>
+          </NavLink>
+        )}
+
+        {role === "teacher" && (
+          <NavLink
+            to={`${basePath}/groups`}
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center text-xs p-2 rounded-md ${
+                isActive ? "text-primary" : "text-muted-foreground"
+              }`
+            }
+          >
+            <List className="h-5 w-5 mb-1" />
+            <span>Guruhlar</span>
+          </NavLink>
+        )}
+
+        {role === "teacher" && (
+          <NavLink
+            to={`${basePath}/answers`}
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center text-xs p-2 rounded-md ${
+                isActive ? "text-primary" : "text-muted-foreground"
+              }`
+            }
+          >
+            <FileText className="h-5 w-5 mb-1" />
+            <span>Javoblar</span>
+          </NavLink>
+        )}
+
+        {role === "student" && (
+          <NavLink
+            to={`${basePath}/grades`}
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center text-xs p-2 rounded-md ${
+                isActive ? "text-primary" : "text-muted-foreground"
+              }`
+            }
+          >
+            <FileText className="h-5 w-5 mb-1" />
+            <span>Baholar</span>
+          </NavLink>
+        )}
+        
+        <NavLink 
+          to={`${basePath}/calendar`} 
+          className={({ isActive }) =>
+            `flex flex-col items-center justify-center text-xs p-2 rounded-md ${
+              isActive ? "text-primary" : "text-muted-foreground"
+            }`
+          }
+        >
+          <Calendar className="h-5 w-5 mb-1" />
+          <span>Kalendar</span>
+        </NavLink>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex flex-col items-center justify-center text-xs p-2 rounded-md focus:outline-none">
+            <User className="h-5 w-5 mb-1 text-muted-foreground" />
+            <span className="text-muted-foreground">Profil</span>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 mb-4">
+            <DropdownMenuLabel>Mening hisobim</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <NavLink to="/profile" className="cursor-pointer">
+                <User className="mr-2 h-4 w-4" />
+                <span>Profil</span>
+              </NavLink>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <NavLink to="/settings" className="cursor-pointer">
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Sozlamalar</span>
+              </NavLink>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={handleLogout}
+              className="text-red-500 focus:text-red-500 cursor-pointer"
             >
-              {({ isActive }) => (
-                <>
-                  <item.icon className={`h-6 w-6 stroke-[2.5px]`} />
-                  <span className="text-[10px] font-medium mt-1">{item.label}</span>
-                  {isActive && (
-                    <span className="absolute -1 bottom-1 w-1 h-1 bg-primary rounded-full" />
-                  )}
-                </>
-              )}
-            </NavLink>
-          ))}
-        </div>
+              <span>Chiqish</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

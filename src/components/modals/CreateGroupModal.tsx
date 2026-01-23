@@ -72,7 +72,7 @@ export function CreateGroupModal({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Yangi guruh yaratish</DialogTitle>
             <DialogDescription>
@@ -104,15 +104,15 @@ export function CreateGroupModal({
 
             <div className="space-y-2">
               <Label>Manzil</Label>
-              <div className="flex items-center gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full justify-start text-left"
+                  className="w-full justify-start text-left overflow-hidden"
                   onClick={() => setIsMapOpen(true)}
                 >
                   <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
-                  <span className="truncate">
+                  <span className="truncate flex-1 min-w-0">
                     {location ? location.address : "Manzilni tanlang"}
                   </span>
                 </Button>

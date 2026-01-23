@@ -1,28 +1,36 @@
 import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Plus, Briefcase, Calendar, FileText, CheckCircle2, Clock } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
-import { Link, useNavigate } from "react-router-dom";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Link } from "react-router-dom";
 
 export default function TeacherTasks() {
   const { userId } = useAuthStore();
-  const navigate = useNavigate();
   const [groups, setGroups] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [openTask, setOpenTask] = useState<any>(null);
   const [form, setForm] = useState<any>({});
+  const [selectedGroupId, setSelectedGroupId] = useState<string>("");
   const [fileUploading, setFileUploading] = useState(false);
 
+  // Guruhlar va topshiriqlarni Supabase'dan olish
   useEffect(() => {
     const fetchGroups = async () => {
       if (!userId) return;
-      const { data, error } = await supabase.from("groups").select("id, name").eq("created_by", userId);
+      const { data, error } = await supabase
+        .from("groups")
+        .select("id, name")
+        .eq("created_by", userId);
       if (!error && data) setGroups(data);
     };
     fetchGroups();
@@ -30,13 +38,20 @@ export default function TeacherTasks() {
 
   useEffect(() => {
     const fetchTasks = async () => {
-      if (!userId || groups.length === 0) return;
-      const { data, error } = await supabase.from("tasks").select("*").in("group_id", groups.map((g) => g.id));
+      if (!userId) return;
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .in(
+          "group_id",
+          groups.map((g) => g.id)
+        );
       if (!error && data) setTasks(data);
     };
-    fetchTasks();
+    if (groups.length > 0) fetchTasks();
   }, [groups, userId]);
 
+  // Task ochilganda formani to'ldirish
   const handleOpenTask = (task: any) => {
     setOpenTask(task);
     setForm({
@@ -48,25 +63,39 @@ export default function TeacherTasks() {
       groupId: task.group_id,
       type: task.type,
     });
+    setSelectedGroupId(task.group_id);
   };
 
-  const handleChange = (e: any) => {
+  // Input o'zgarishi
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
     const { name, value } = e.target;
     setForm((prev: any) => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = async (e: any) => {
-    const file = e.target.files?.[0];
+  // Fayl yuklash
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
     if (!file) return;
     setFileUploading(true);
-    const { data, error } = await supabase.storage.from("tasks").upload(`${userId}/${Date.now()}_${file.name}`, file);
+    const { data, error } = await supabase.storage
+      .from("tasks")
+      .upload(`${userId}/${Date.now()}_${file.name}`, file);
     setFileUploading(false);
-    if (!error) setForm((prev: any) => ({ ...prev, file: data.path }));
+    if (error) {
+      alert("Fayl yuklashda xatolik: " + error.message);
+      return;
+    }
+    setForm((prev: any) => ({ ...prev, file: data.path }));
   };
 
+  // Yangi yoki tahrirlangan topshiriqni saqlash
   const handleSaveTask = async () => {
-    if (!form.title || !form.groupId || !form.type) return alert("Required fields missing");
-    
+    if (!form.title || !form.groupId || !form.type)
+      return alert("Barcha maydonlarni to'ldiring");
     const payload: any = {
       title: form.title,
       description: form.description,
@@ -77,138 +106,208 @@ export default function TeacherTasks() {
       deadline: form.type === "homework" ? form.deadline : null,
       date: form.type === "internship" ? form.date : null,
     };
-
     if (openTask && openTask.id) {
+      // Tahrirlash
       await supabase.from("tasks").update(payload).eq("id", openTask.id);
     } else {
+      // Yangi topshiriq
       await supabase.from("tasks").insert([payload]);
     }
     setOpenTask(null);
-    // Refresh
-    const { data } = await supabase.from("tasks").select("*").in("group_id", groups.map((g) => g.id));
+    // Qayta yuklash
+    const { data } = await supabase
+      .from("tasks")
+      .select("*")
+      .in(
+        "group_id",
+        groups.map((g) => g.id)
+      );
     if (data) setTasks(data);
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20 relative overflow-hidden">
-      {/* Gradient Header */}
-      <div className="bg-primary-gradient h-48 w-full rounded-b-[2.5rem] shadow-lg absolute top-0 z-0 content-['']" />
-
-      <div className="relative z-10 pt-8 px-6">
-        <div className="flex justify-between items-center mb-8 text-white">
-          <div>
-            <h1 className="text-3xl font-black">My Tasks</h1>
-            <p className="opacity-80 text-sm font-medium">Manage assignments & internships</p>
-          </div>
-          <button 
-            onClick={() => navigate("/teacher-dashboard/tasks/add")}
-            className="w-12 h-12 bg-white text-primary rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 transition-transform active:scale-95"
-          >
-            <Plus className="w-6 h-6 stroke-[3]" />
-          </button>
-        </div>
-
-        <div className="space-y-4 pb-4">
-          {tasks.length > 0 ? (
-            tasks.map((task) => (
-              <div
-                key={task.id}
-                className="card-modern bg-white p-5 flex items-start gap-4 hover:bg-gray-50 transition-colors cursor-pointer"
-                onClick={() => handleOpenTask(task)}
-              >
-                <div className={`w-12 h-12 rounded-2xl flex-shrink-0 flex items-center justify-center ${task.type === 'homework' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
-                  {task.type === 'homework' ? <Briefcase className="w-6 h-6" /> : <Calendar className="w-6 h-6" />}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start mb-1">
-                     <h3 className="font-bold text-gray-800 truncate pr-2">{task.title}</h3>
-                     <Badge variant="outline" className={`${task.type === 'homework' ? 'text-blue-600 bg-blue-50 border-blue-200' : 'text-green-600 bg-green-50 border-green-200'}`}>
-                       {task.type === "homework" ? "Homework" : "Internship"}
-                     </Badge>
-                  </div>
-                  
-                  <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                    <span className="font-semibold text-gray-500">{groups.find((g) => g.id === task.group_id)?.name}</span>
-                    <span>•</span>
-                    {task.type === "homework" ? (
-                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Due {new Date(task.deadline).toLocaleDateString()}</span>
-                    ) : (
-                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(task.date).toLocaleDateString()}</span>
-                    )}
-                  </p>
-                  
-                  {task.description && (
-                    <p className="text-xs text-gray-400 line-clamp-2">{task.description}</p>
-                  )}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-10 bg-white rounded-[2rem] shadow-soft">
-               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
-                 <FileText className="w-8 h-8" />
-               </div>
-               <h3 className="text-gray-900 font-bold mb-1">No Tasks Found</h3>
-               <p className="text-gray-500 text-sm">Create your first task to get started.</p>
-            </div>
-          )}
-        </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Topshiriqlar</h1>
+        <Link
+          to="/teacher-dashboard/tasks/add"
+          className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium"
+        >
+          + Yangi topshiriq
+        </Link>
       </div>
-
+      <div className="space-y-4">
+        {tasks.map((task) => (
+          <Card
+            key={task.id}
+            className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5"
+          >
+            <div className="flex-1 cursor-default">
+              <div className="flex items-center gap-2 mb-2">
+                <CardTitle className="text-xl font-semibold mb-0">
+                  {task.title}
+                </CardTitle>
+                <Badge
+                  variant={task.type === "homework" ? "default" : "secondary"}
+                  className={
+                    task.type === "homework"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-green-100 text-green-700"
+                  }
+                >
+                  {task.type === "homework" ? "Uyga vazifa" : "Amaliyot"}
+                </Badge>
+              </div>
+              <div className="text-sm text-muted-foreground mb-1">
+                Guruh: {groups.find((g) => g.id === task.group_id)?.name}
+              </div>
+              <div className="text-xs text-muted-foreground mb-1">
+                {task.type === "homework"
+                  ? `Muddat: ${task.deadline ? new Date(task.deadline).toLocaleDateString() : "-"}`
+                  : `Amaliyot kuni: ${task.date ? new Date(task.date).toLocaleDateString() : "-"}`}
+              </div>
+              <div className="text-xs text-muted-foreground line-clamp-1">
+                {task.description}
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2 md:mt-0 flex items-center gap-1"
+              onClick={() => handleOpenTask(task)}
+            >
+              <Pencil className="w-4 h-4" /> Tahrirlash
+            </Button>
+          </Card>
+        ))}
+      </div>
       <Dialog open={!!openTask} onOpenChange={() => setOpenTask(null)}>
-        <DialogContent className="rounded-2xl max-w-sm mx-4">
+        <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle>Edit Task</DialogTitle>
+            <DialogTitle>Topshiriqni tahrirlash</DialogTitle>
           </DialogHeader>
           {openTask && (
-            <div className="space-y-4">
-               <div>
-                 <Label>Title</Label>
-                 <Input name="title" value={form.title} onChange={handleChange} className="rounded-xl" />
-               </div>
-               <div>
-                 <Label>Description</Label>
-                 <Textarea name="description" value={form.description} onChange={handleChange} className="rounded-xl" />
-               </div>
-               <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Type</Label>
-                    <select name="type" value={form.type} onChange={handleChange} className="w-full h-10 rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                       <option value="homework">Homework</option>
-                       <option value="internship">Internship</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Group</Label>
-                    <select name="groupId" value={form.groupId} onChange={handleChange} className="w-full h-10 rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                       {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-                    </select>
-                  </div>
-               </div>
-               
-               <div>
-                  <Label>{form.type === 'homework' ? 'Deadline' : 'Date'}</Label>
-                  <Input 
-                    type="date" 
-                    name={form.type === 'homework' ? 'deadline' : 'date'} 
-                    value={form.type === 'homework' ? form.deadline : form.date} 
-                    onChange={handleChange} 
-                    className="rounded-xl"
+            <form className="space-y-4">
+              <div>
+                <label className="block mb-1 font-medium">Nomi</label>
+                <input
+                  type="text"
+                  name="title"
+                  value={form.title}
+                  onChange={handleChange}
+                  placeholder="Masalan: Frontend vazifa"
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition"
+                />
+              </div>
+              <div>
+                <label className="block mb-1 font-medium">Tavsifi</label>
+                <textarea
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                  placeholder="Vazifa haqida qisqacha yozing..."
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition resize-none"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className="block mb-1 font-medium">Guruh</label>
+                <select
+                  name="groupId"
+                  value={form.groupId}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition"
+                >
+                  <option value="">Guruhni tanlang</option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block mb-1 font-medium">Turi</label>
+                <select
+                  name="type"
+                  value={form.type}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition"
+                >
+                  <option value="homework">Uyga vazifa</option>
+                  <option value="internship">Amaliyot</option>
+                </select>
+              </div>
+              {form.type === "homework" ? (
+                <div>
+                  <label className="block mb-1 font-medium">Deadline</label>
+                  <input
+                    type="date"
+                    name="deadline"
+                    value={form.deadline}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition"
                   />
-               </div>
-
-               <div>
-                 <Label>Attachment</Label>
-                 <Input type="file" onChange={handleFileChange} className="rounded-xl" />
-                 {fileUploading && <span className="text-xs text-blue-500">Uploading...</span>}
-               </div>
-
-               <div className="flex justify-end gap-2 pt-2">
-                 <Button variant="ghost" onClick={() => setOpenTask(null)}>Cancel</Button>
-                 <Button onClick={handleSaveTask}>Save Changes</Button>
-               </div>
-            </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block mb-1 font-medium">
+                    Amaliyot sanasi
+                  </label>
+                  <input
+                    type="date"
+                    name="date"
+                    value={form.date}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="block mb-1 font-medium">Fayl</label>
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <input
+                    type="file"
+                    id="file-upload"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="flex-shrink-0 px-4 py-2 rounded-lg border border-border bg-muted text-foreground cursor-pointer hover:bg-blue-50 transition text-sm font-medium"
+                  >
+                    Fayl tanlash
+                  </label>
+                  {form.file && typeof form.file === "string" && (
+                    <span className="text-xs text-muted-foreground truncate max-w-xs block">
+                      {form.file}
+                    </span>
+                  )}
+                </div>
+                {fileUploading && (
+                  <div className="text-xs text-blue-500 mt-1">
+                    Yuklanmoqda...
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="ghost"
+                  type="button"
+                  onClick={() => setOpenTask(null)}
+                  className="px-4 py-2 rounded-lg"
+                >
+                  Bekor qilish
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSaveTask}
+                  className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  Saqlash
+                </Button>
+              </div>
+            </form>
           )}
         </DialogContent>
       </Dialog>
