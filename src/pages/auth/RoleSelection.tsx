@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, Users } from "lucide-react";
+import { GraduationCap, Users, ShieldAlert } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +11,7 @@ import type { UserRole } from "@/types";
 
 const RoleSelection = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [showDebugLogin, setShowDebugLogin] = useState(false);
   const { setUser } = useAuthStore();
   const { user: telegramUser } = useTelegram();
   const navigate = useNavigate();
@@ -101,13 +102,51 @@ const RoleSelection = () => {
     }
   };
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!telegramUser) {
+        setShowDebugLogin(true);
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [telegramUser]);
+
+  const handleDebugLogin = () => {
+    setUser({
+      id: "999999999",
+      email: "debug_user",
+      name: "Debug User",
+      role: "student",
+      profileUrl: null,
+    });
+    navigate("/student-dashboard");
+  };
+
   if (!telegramUser) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="glass-card rounded-[2rem] p-8 shadow-soft text-center max-w-sm w-full animate-pulse">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 text-center">
+        <div className="glass-card rounded-[2rem] p-8 shadow-soft max-w-sm w-full animate-pulse mb-4">
            <div className="w-16 h-16 bg-muted rounded-full mx-auto mb-4" />
            <div className="h-4 bg-muted rounded w-3/4 mx-auto mb-2" />
            <div className="h-3 bg-muted rounded w-1/2 mx-auto" />
+        </div>
+        <p className="text-gray-500 font-medium mb-4">Telegram bilan bog'lanmoqda...</p>
+        
+        {showDebugLogin && (
+          <Button variant="destructive" size="sm" onClick={handleDebugLogin} className="mb-4">
+             <ShieldAlert className="w-4 h-4 mr-2" />
+             Debug: Test Rejimida Kirish
+          </Button>
+        )}
+
+        <div className="mt-8 p-4 bg-gray-100 rounded text-xs text-left w-full overflow-hidden">
+          <p className="font-bold">Debug Info:</p>
+          <p>Has Window: {typeof window !== 'undefined' ? 'Yes' : 'No'}</p>
+          <p>Has Telegram: {window.Telegram ? 'Yes' : 'No'}</p>
+          <p>Has WebApp: {window.Telegram?.WebApp ? 'Yes' : 'No'}</p>
+          <p>Platform: {window.Telegram?.WebApp?.platform || 'Unknown'}</p>
+          <p>User exists: {window.Telegram?.WebApp?.initDataUnsafe?.user ? 'Yes' : 'No'}</p>
+          <p className="break-all mt-2 text-[10px] opacity-50">{window.Telegram?.WebApp?.initData}</p>
         </div>
       </div>
     );
