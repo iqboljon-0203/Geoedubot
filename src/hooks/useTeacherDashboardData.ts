@@ -1,129 +1,189 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabaseClient";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabaseClient';
 
-export function useTeacherDashboardData(userId: string) {
+export interface DashboardStats {
+  totalStudents: number;
+  activeGroups: number;
+  totalTasks: number;
+  pendingReviews: number;
+}
+
+export interface ActivityItem {
+  id: string;
+  type: 'group_join' | 'task_submit' | 'new_group' | 'new_task';
+  title: string;
+  subtitle: string;
+  timestamp: string;
+  user?: string;
+  meta?: any;
+}
+
+export const useTeacherDashboardData = (userId: string | undefined) => {
   return useQuery({
-    queryKey: ["teacher-dashboard-data", userId],
+    queryKey: ['teacher-dashboard', userId],
     queryFn: async () => {
-      // 1. Ustoz yaratgan guruhlar
+      if (!userId) throw new Error('User ID is required');
+
+      // 1. Get Groups created by teacher
       const { data: groups, error: groupsError } = await supabase
-        .from("groups")
-        .select("id, name")
-        .eq("created_by", userId);
+        .from('groups')
+        .select('id, name, created_at')
+        .eq('created_by', userId)
+        .order('created_at', { ascending: false });
+
       if (groupsError) throw groupsError;
-      const groupIds = (groups || []).map((g) => g.id);
-      if (!groupIds.length) {
+
+      const groupIds = groups.map(g => g.id);
+      
+      // If no groups, return empty stats
+      if (groupIds.length === 0) {
         return {
-          stats: { groups: 0, tasks: 0, submissions: 0, pendingReviews: 0 },
-          upcomingTasks: [],
-          lastAnswers: [],
+          stats: { totalStudents: 0, activeGroups: 0, totalTasks: 0, pendingReviews: 0 },
+          recentActivity: []
         };
       }
-      // 2. Shu guruhlarga tegishli topshiriqlar
-      const { data: tasks, error: tasksError } = await supabase
-        .from("tasks")
-        .select("id, title, type, group_id, deadline, date")
-        .in("group_id", groupIds);
-      if (tasksError) throw tasksError;
-      const taskIds = (tasks || []).map((t) => t.id);
-      // 3. Javoblar (answers)
-      const {
-        data: answers,
-        error: answersError,
-        count: submissionsCount,
-      } = await supabase
-        .from("answers")
-        .select(
-          "id, user_id, task_id, created_at, score, description, file_url",
-          { count: "exact" }
-        )
-        .in("task_id", taskIds);
-      if (answersError) throw answersError;
-      // 4. Baholanmagan javoblar (score null)
-      const { count: pendingCount } = await supabase
-        .from("answers")
-        .select("id", { count: "exact", head: true })
-        .in("task_id", taskIds)
-        .is("score", null);
-      // 5. Statistika
-      const stats = {
-        groups: groupIds.length,
-        tasks: taskIds.length,
-        submissions: submissionsCount || 0,
-        pendingReviews: pendingCount || 0,
-      };
-      // 6. Yaqinlashayotgan 3 ta topshiriq
-      const groupMap = Object.fromEntries(
-        (groups || []).map((g) => [g.id, g.name])
-      );
-      const now = new Date();
-      const upcomingTasks = (tasks || [])
-        .map((t) => ({
-          id: t.id,
-          title: t.title,
-          type: t.type,
-          group: groupMap[t.group_id] || "Noma'lum",
-          deadline: t.deadline,
-          date: t.date,
-        }))
-        .filter((t) => {
-          const dateStr = t.deadline || t.date;
-          if (!dateStr) return false;
-          const date = new Date(dateStr);
-          return date >= now;
-        })
-        .sort((a, b) => {
-          const aDate = new Date(a.deadline || a.date);
-          const bDate = new Date(b.deadline || b.date);
-          return aDate.getTime() - bDate.getTime();
-        })
-        .slice(0, 3);
-      // 7. Oxirgi 3 ta javob
-      const taskMap = Object.fromEntries(
-        (tasks || []).map((t) => [
-          t.id,
-          {
-            title: t.title,
-            group: groupMap[t.group_id] || "Noma'lum",
-          },
-        ])
-      );
-      const lastAnswersRaw = (answers || [])
-        .sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )
-        .slice(0, 3);
-      // Student ismlarini olish
-      const userIds = Array.from(new Set(lastAnswersRaw.map((a) => a.user_id)));
-      let studentMap: Record<string, string> = {};
-      if (userIds.length) {
-        const { data: students } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", userIds);
-        studentMap = Object.fromEntries(
-          (students || []).map((s) => [s.id, s.full_name])
-        );
+
+      // 2. Get Students count (in teacher's groups)
+      const { count: studentsCount, error: studentsError } = await supabase
+        .from('group_members')
+        .select('id', { count: 'exact', head: true })
+        .in('group_id', groupIds);
+
+      if (studentsError) throw studentsError;
+
+      // 3. Get Total Tasks count
+      const { count: totalTasksCount, error: totalTasksError } = await supabase
+        .from('tasks')
+        .select('id', { count: 'exact', head: true })
+        .in('group_id', groupIds);
+        
+      if (totalTasksError) throw totalTasksError;
+
+      // 4. Get recent tasks for activity feed
+      const { data: recentTasks } = await supabase
+        .from('tasks')
+        .select('id, title, created_at, group_id')
+        .in('group_id', groupIds)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      // 5. Get Pending Reviews & Recent Submissions
+      const { data: allTeacherTasks } = await supabase
+        .from('tasks')
+        .select('id')
+        .in('group_id', groupIds);
+        
+      const allTaskIds = allTeacherTasks?.map(t => t.id) || [];
+      
+      let pendingReviews = 0;
+      let recentSubmissions: any[] = [];
+
+      if (allTaskIds.length > 0) {
+        // Pending reviews count
+        const { count, error: pendingError } = await supabase
+           .from('answers')
+           .select('id', { count: 'exact', head: true })
+           .in('task_id', allTaskIds)
+           .is('score', null);
+
+        if (!pendingError) pendingReviews = count || 0;
+
+        // Recent submissions for activity
+        const { data: submissions } = await supabase
+            .from('answers')
+            .select(`
+                id,
+                created_at,
+                task_id,
+                tasks (title),
+                user_id,
+                profiles:user_id (full_name)
+            `)
+            .in('task_id', allTaskIds)
+            .order('created_at', { ascending: false })
+            .limit(5);
+        recentSubmissions = submissions || [];
       }
-      const lastAnswers = lastAnswersRaw.map((a) => ({
-        id: a.id,
-        student: studentMap[a.user_id] || "Noma'lum",
-        group: taskMap[a.task_id]?.group || "Noma'lum",
-        task: taskMap[a.task_id]?.title || "Noma'lum",
-        submittedAt: a.created_at?.split("T")[0] || "",
-        score: a.score,
-        fileUrl: a.file_url,
-        description: a.description,
-      }));
+
+      // 6. Get Recent Group Joins
+      const { data: recentJoins } = await supabase
+        .from('group_members')
+        .select(`
+           id,
+           created_at,
+           group_id,
+           groups (name),
+           user_id,
+           profiles:user_id (full_name)
+        `)
+        .in('group_id', groupIds)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+
+      // 7. Construct Activity Feed
+      const activities: ActivityItem[] = [];
+
+      // Add recent groups
+      groups.slice(0, 3).forEach(g => {
+        activities.push({
+            id: `group-${g.id}`,
+            type: 'new_group',
+            title: 'Created New Group',
+            subtitle: g.name,
+            timestamp: g.created_at
+        });
+      });
+
+      // Add recent tasks
+      recentTasks?.forEach(t => {
+         activities.push({
+            id: `task-${t.id}`,
+            type: 'new_task',
+            title: 'Assigned New Task',
+            subtitle: t.title,
+            timestamp: t.created_at
+         });
+      });
+
+      // Add recent submissions
+      recentSubmissions.forEach(s => {
+          activities.push({
+              id: `sub-${s.id}`,
+              type: 'task_submit',
+              title: 'New Submission',
+              subtitle: `${s.profiles?.full_name} submitted on ${s.tasks?.title}`,
+              timestamp: s.created_at,
+              user: s.profiles?.full_name,
+              meta: { answerId: s.id }
+          });
+      });
+      
+      // Add recent joins
+      recentJoins?.forEach(j => {
+         activities.push({
+            id: `join-${j.id}`,
+            type: 'group_join',
+            title: 'New Student Joined',
+            subtitle: `${j.profiles?.full_name} joined ${j.groups?.name}`,
+            timestamp: j.created_at,
+            user: j.profiles?.full_name
+         });
+      });
+
+      // Sort by latest
+      activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
       return {
-        stats,
-        upcomingTasks,
-        lastAnswers,
+        stats: {
+          totalStudents: studentsCount || 0,
+          activeGroups: groups.length,
+          totalTasks: totalTasksCount || 0,
+          pendingReviews
+        },
+        recentActivity: activities.slice(0, 10)
       };
     },
-    staleTime: 1000 * 60 * 2,
-    keepPreviousData: true,
-    refetchOnWindowFocus: false,
+    enabled: !!userId,
   });
-}
+};

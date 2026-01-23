@@ -1,29 +1,32 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
+import { Plus, ArrowLeft, Calendar, Clock, FileText, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Pencil } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
-import { Link } from "react-router-dom";
+import { AddTaskModal } from "@/components/modals/AddTaskModal";
+import { TaskDetailsModal } from "@/components/modals/TaskDetailsModal";
+
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  type: "homework" | "internship";
+  deadline?: string;
+  date?: string;
+  group_id: string;
+  file_url?: string;
+}
 
 export default function TeacherTasks() {
   const { userId } = useAuthStore();
+  const navigate = useNavigate();
   const [groups, setGroups] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [openTask, setOpenTask] = useState<any>(null);
-  const [form, setForm] = useState<any>({});
-  const [selectedGroupId, setSelectedGroupId] = useState<string>("");
-  const [fileUploading, setFileUploading] = useState(false);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
-  // Guruhlar va topshiriqlarni Supabase'dan olish
   useEffect(() => {
     const fetchGroups = async () => {
       if (!userId) return;
@@ -38,279 +41,164 @@ export default function TeacherTasks() {
 
   useEffect(() => {
     const fetchTasks = async () => {
-      if (!userId) return;
+      if (!userId || groups.length === 0) return;
       const { data, error } = await supabase
         .from("tasks")
         .select("*")
         .in(
           "group_id",
           groups.map((g) => g.id)
-        );
+        )
+        .order("created_at", { ascending: false });
       if (!error && data) setTasks(data);
     };
     if (groups.length > 0) fetchTasks();
   }, [groups, userId]);
 
-  // Task ochilganda formani to'ldirish
-  const handleOpenTask = (task: any) => {
-    setOpenTask(task);
-    setForm({
-      title: task.title,
-      description: task.description || "",
-      deadline: task.deadline || "",
-      date: task.date || "",
-      file: task.file_url || null,
-      groupId: task.group_id,
-      type: task.type,
-    });
-    setSelectedGroupId(task.group_id);
+  const getGroupName = (groupId: string) => {
+    return groups.find((g) => g.id === groupId)?.name || "Unknown";
   };
 
-  // Input o'zgarishi
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => {
-    const { name, value } = e.target;
-    setForm((prev: any) => ({ ...prev, [name]: value }));
-  };
-
-  // Fayl yuklash
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    if (!file) return;
-    setFileUploading(true);
-    const { data, error } = await supabase.storage
-      .from("tasks")
-      .upload(`${userId}/${Date.now()}_${file.name}`, file);
-    setFileUploading(false);
-    if (error) {
-      alert("Fayl yuklashda xatolik: " + error.message);
-      return;
-    }
-    setForm((prev: any) => ({ ...prev, file: data.path }));
-  };
-
-  // Yangi yoki tahrirlangan topshiriqni saqlash
-  const handleSaveTask = async () => {
-    if (!form.title || !form.groupId || !form.type)
-      return alert("Barcha maydonlarni to'ldiring");
-    const payload: any = {
-      title: form.title,
-      description: form.description,
-      type: form.type,
-      group_id: form.groupId,
-      file_url: form.file,
-      created_by: userId,
-      deadline: form.type === "homework" ? form.deadline : null,
-      date: form.type === "internship" ? form.date : null,
-    };
-    if (openTask && openTask.id) {
-      // Tahrirlash
-      await supabase.from("tasks").update(payload).eq("id", openTask.id);
-    } else {
-      // Yangi topshiriq
-      await supabase.from("tasks").insert([payload]);
-    }
-    setOpenTask(null);
-    // Qayta yuklash
-    const { data } = await supabase
-      .from("tasks")
-      .select("*")
-      .in(
-        "group_id",
-        groups.map((g) => g.id)
-      );
-    if (data) setTasks(data);
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setIsDetailsOpen(true);
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Topshiriqlar</h1>
-        <Link
-          to="/teacher-dashboard/tasks/add"
-          className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium"
-        >
-          + Yangi topshiriq
-        </Link>
-      </div>
-      <div className="space-y-4">
-        {tasks.map((task) => (
-          <Card
-            key={task.id}
-            className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5"
-          >
-            <div className="flex-1 cursor-default">
-              <div className="flex items-center gap-2 mb-2">
-                <CardTitle className="text-xl font-semibold mb-0">
-                  {task.title}
-                </CardTitle>
-                <Badge
-                  variant={task.type === "homework" ? "default" : "secondary"}
-                  className={
-                    task.type === "homework"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-green-100 text-green-700"
-                  }
-                >
-                  {task.type === "homework" ? "Uyga vazifa" : "Amaliyot"}
-                </Badge>
-              </div>
-              <div className="text-sm text-muted-foreground mb-1">
-                Guruh: {groups.find((g) => g.id === task.group_id)?.name}
-              </div>
-              <div className="text-xs text-muted-foreground mb-1">
-                {task.type === "homework"
-                  ? `Muddat: ${task.deadline ? new Date(task.deadline).toLocaleDateString() : "-"}`
-                  : `Amaliyot kuni: ${task.date ? new Date(task.date).toLocaleDateString() : "-"}`}
-              </div>
-              <div className="text-xs text-muted-foreground line-clamp-1">
-                {task.description}
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30 pb-20">
+      {/* Header */}
+      <div className="sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate(-1)}
+                className="p-2 hover:bg-white/50 rounded-xl transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5 text-gray-600" />
+              </button>
+              <h1 className="text-xl font-bold text-gray-900">Topshiriqlar</h1>
             </div>
             <Button
-              variant="outline"
-              size="sm"
-              className="mt-2 md:mt-0 flex items-center gap-1"
-              onClick={() => handleOpenTask(task)}
+              onClick={() => setIsAddModalOpen(true)}
+              className="h-10 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
             >
-              <Pencil className="w-4 h-4" /> Tahrirlash
+              <Plus className="w-4 h-4 mr-2" />
+              Yangi topshiriq
             </Button>
-          </Card>
-        ))}
+          </div>
+        </div>
       </div>
-      <Dialog open={!!openTask} onOpenChange={() => setOpenTask(null)}>
-        <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle>Topshiriqni tahrirlash</DialogTitle>
-          </DialogHeader>
-          {openTask && (
-            <form className="space-y-4">
-              <div>
-                <label className="block mb-1 font-medium">Nomi</label>
-                <input
-                  type="text"
-                  name="title"
-                  value={form.title}
-                  onChange={handleChange}
-                  placeholder="Masalan: Frontend vazifa"
-                  className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition"
-                />
-              </div>
-              <div>
-                <label className="block mb-1 font-medium">Tavsifi</label>
-                <textarea
-                  name="description"
-                  value={form.description}
-                  onChange={handleChange}
-                  placeholder="Vazifa haqida qisqacha yozing..."
-                  className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition resize-none"
-                  rows={3}
-                />
-              </div>
-              <div>
-                <label className="block mb-1 font-medium">Guruh</label>
-                <select
-                  name="groupId"
-                  value={form.groupId}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition"
-                >
-                  <option value="">Guruhni tanlang</option>
-                  {groups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block mb-1 font-medium">Turi</label>
-                <select
-                  name="type"
-                  value={form.type}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition"
-                >
-                  <option value="homework">Uyga vazifa</option>
-                  <option value="internship">Amaliyot</option>
-                </select>
-              </div>
-              {form.type === "homework" ? (
-                <div>
-                  <label className="block mb-1 font-medium">Deadline</label>
-                  <input
-                    type="date"
-                    name="deadline"
-                    value={form.deadline}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition"
-                  />
-                </div>
-              ) : (
-                <div>
-                  <label className="block mb-1 font-medium">
-                    Amaliyot sanasi
-                  </label>
-                  <input
-                    type="date"
-                    name="date"
-                    value={form.date}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition"
-                  />
-                </div>
-              )}
-              <div>
-                <label className="block mb-1 font-medium">Fayl</label>
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <input
-                    type="file"
-                    id="file-upload"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                  <label
-                    htmlFor="file-upload"
-                    className="flex-shrink-0 px-4 py-2 rounded-lg border border-border bg-muted text-foreground cursor-pointer hover:bg-blue-50 transition text-sm font-medium"
-                  >
-                    Fayl tanlash
-                  </label>
-                  {form.file && typeof form.file === "string" && (
-                    <span className="text-xs text-muted-foreground truncate max-w-xs block">
-                      {form.file}
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {tasks.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center mx-auto mb-4 shadow-sm">
+              <FileText className="w-10 h-10 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Hali topshiriq yo'q
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Birinchi topshiriqni yaratib boshlang
+            </p>
+            <Button
+              onClick={() => setIsAddModalOpen(true)}
+              className="h-12 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Topshiriq yaratish
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {tasks.map((task) => (
+              <div
+                key={task.id}
+                className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group"
+                onClick={() => handleTaskClick(task)}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                    <span className="text-2xl">
+                      {task.type === "homework" ? "📝" : "💼"}
                     </span>
+                  </div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      task.type === "homework"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-green-100 text-green-700"
+                    }`}
+                  >
+                    {task.type === "homework" ? "Uyga vazifa" : "Amaliyot"}
+                  </span>
+                </div>
+
+                <h3 className="text-lg font-bold text-gray-900 mb-2 truncate">
+                  {task.title}
+                </h3>
+                
+                {task.description && (
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                    {task.description}
+                  </p>
+                )}
+
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <FileText className="w-4 h-4" />
+                    <span>{getGroupName(task.group_id)}</span>
+                  </div>
+                  {(task.deadline || task.date) && (
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <Calendar className="w-4 h-4" />
+                      <span>
+                        {new Date(
+                          task.deadline || task.date || ""
+                        ).toLocaleDateString()}
+                      </span>
+                    </div>
                   )}
                 </div>
-                {fileUploading && (
-                  <div className="text-xs text-blue-500 mt-1">
-                    Yuklanmoqda...
-                  </div>
-                )}
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  variant="ghost"
-                  type="button"
-                  onClick={() => setOpenTask(null)}
-                  className="px-4 py-2 rounded-lg"
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleTaskClick(task);
+                  }}
+                  className="w-full py-2 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium text-sm transition-colors flex items-center justify-center gap-2"
                 >
-                  Bekor qilish
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleSaveTask}
-                  className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white"
-                >
-                  Saqlash
-                </Button>
+                  <Edit2 className="w-4 h-4" />
+                  Tahrirlash
+                </button>
               </div>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <AddTaskModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        groups={groups}
+      />
+
+      {selectedTask && (
+        <TaskDetailsModal
+          isOpen={isDetailsOpen}
+          onClose={() => {
+            setIsDetailsOpen(false);
+            setSelectedTask(null);
+          }}
+          task={selectedTask}
+          onSave={async (updatedTask) => {
+            // Update logic here
+            setIsDetailsOpen(false);
+            setSelectedTask(null);
+          }}
+        />
+      )}
     </div>
   );
 }

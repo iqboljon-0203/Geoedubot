@@ -1,433 +1,214 @@
-import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { supabase } from "@/lib/supabaseClient";
-import { useAuthStore } from "@/store/authStore";
-import { toast } from "@/hooks/use-toast";
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Filter, CheckCircle2 } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import EmptyState from '@/components/ui/EmptyState';
+import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/store/authStore';
+import { useStudentTasks } from '@/hooks/useStudentTasks';
+import { formatDistanceToNow, isPast } from 'date-fns';
 
-// Mock guruhlar va lokatsiyalar
-const mockGroups = [
-  {
-    id: "abc12345",
-    title: "Web Development",
-    location: { lat: 41.3, lng: 69.2 },
-  },
-  {
-    id: "def67890",
-    title: "Database Systems",
-    location: { lat: 41.4, lng: 69.3 },
-  },
-];
-
-const homeworkTasks = [
-  {
-    id: "1",
-    title: "Tadqiqot ishini topshirish",
-    deadline: "2025-06-15",
-    status: "pending",
-    group: "Tadqiqot usullari",
-    type: "homework",
-    grade: null,
-  },
-  {
-    id: "2",
-    title: "Testni yakunlash",
-    deadline: "2025-06-20",
-    status: "submitted",
-    group: "Dasturiy ta'minot muhandisligi",
-    type: "homework",
-    grade: 8,
-  },
-  {
-    id: "3",
-    title: "5-chi laboratoriya mashg'uloti",
-    deadline: "2025-06-25",
-    status: "pending",
-    group: "Ma'lumotlar bazasi tizimlari",
-    type: "homework",
-    grade: null,
-  },
-];
-
-const internshipTasks = [
-  {
-    id: "4",
-    title: "Dasturiy ta'minot sinovi",
-    date: "2025-07-01",
-    status: "pending",
-    group: "Sifat nazorati",
-    type: "internship",
-    groupId: "abc12345",
-    grade: null,
-  },
-  {
-    id: "5",
-    title: "Ma'lumotlar bazasi migratsiyasi",
-    date: "2025-07-05",
-    status: "submitted",
-    group: "Ma'lumotlar bazasi tizimlari",
-    type: "internship",
-    groupId: "def67890",
-    grade: 10,
-  },
-];
-
-function isToday(dateStr) {
-  const today = new Date();
-  const date = new Date(dateStr);
-  return (
-    date.getFullYear() === today.getFullYear() &&
-    date.getMonth() === today.getMonth() &&
-    date.getDate() === today.getDate()
-  );
-}
-
-const StudentTasks = () => {
-  const [openTask, setOpenTask] = useState(null);
-  const [answerDesc, setAnswerDesc] = useState("");
-  const [answerFile, setAnswerFile] = useState(null);
-  const [location, setLocation] = useState(null);
-  const [locationError, setLocationError] = useState("");
-  const [tasks, setTasks] = useState([]);
-  const [groups, setGroups] = useState([]);
+export default function StudentTasks() {
+  const navigate = useNavigate();
   const { userId } = useAuthStore();
+  const [activeTab, setActiveTab] = useState<'todo' | 'done'>('todo');
+  
+  const { data: tasks = [], isLoading } = useStudentTasks(userId);
 
-  useEffect(() => {
-    const fetchTasks = async () => {
-      if (!userId) return;
-      // Student a'zo bo'lgan guruhlar
-      const { data: memberData } = await supabase
-        .from("group_members")
-        .select("group_id")
-        .eq("user_id", userId);
-      if (memberData && memberData.length > 0) {
-        const groupIds = memberData.map((m) => m.group_id);
-        setGroups(groupIds);
-        // Shu guruhlarga tegishli barcha topshiriqlar
-        const { data: tasksData } = await supabase
-          .from("tasks")
-          .select("*")
-          .in("group_id", groupIds)
-          .order("created_at", { ascending: false });
-        setTasks(tasksData || []);
-      } else {
-        setGroups([]);
-        setTasks([]);
-      }
-    };
-    fetchTasks();
-  }, [userId]);
+  // Filter tasks based on tab
+  const filteredTasks = tasks.filter((task) => {
+    const hasSubmitted = task.answers && task.answers.length > 0;
+    return activeTab === 'todo' ? !hasSubmitted : hasSubmitted;
+  });
 
-  const handleOpen = (task) => {
-    setOpenTask(task);
-    setAnswerDesc("");
-    setAnswerFile(null);
-    setLocation(null);
-    setLocationError("");
+  const getTaskStatus = (task: any) => {
+    if (isPast(new Date(task.deadline)) && (!task.answers || task.answers.length === 0)) return 'overdue';
+    if (task.answers && task.answers.length > 0) return 'completed';
+    return 'pending';
   };
 
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setAnswerFile(e.target.files[0]);
+  const formatDeadline = (deadline: string) => {
+    const date = new Date(deadline);
+    if (isPast(date)) {
+      return `Overdue by ${formatDistanceToNow(date)}`;
     }
+    return formatDistanceToNow(date, { addSuffix: true });
   };
-
-  const handleGetLocation = () => {
-    if (!navigator.geolocation) {
-      setLocationError("Brauzeringiz geolokatsiyani qo'llab-quvvatlamaydi");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setLocationError("");
-      },
-      () => {
-        setLocationError("Lokatsiyani aniqlab bo'lmadi");
-      }
-    );
-  };
-
-  const handleSubmit = async (task) => {
-    // Majburiy maydonlar tekshiruvi
-    if (!answerDesc.trim()) {
-      toast({
-        title: "Xatolik",
-        description: "Tavsif maydoni to'ldirilishi shart!",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!answerFile) {
-      toast({
-        title: "Xatolik",
-        description: "Fayl yuklash majburiy!",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (task.type === "internship") {
-      if (!location) {
-        setLocationError("Lokatsiyani aniqlang");
-        return;
-      }
-      // Guruh lokatsiyasini olish
-      const { data: groupData } = await supabase
-        .from("groups")
-        .select("lat, lng")
-        .eq("id", task.group_id)
-        .single();
-      if (groupData) {
-        const groupLoc = { lat: groupData.lat, lng: groupData.lng };
-        const dist = Math.sqrt(
-          Math.pow(location.lat - groupLoc.lat, 2) +
-            Math.pow(location.lng - groupLoc.lng, 2)
-        );
-        if (dist > 0.02) {
-          setLocationError("Siz kerakli joyda emassiz!");
-          return;
-        }
-      }
-    }
-    let file_url = null;
-    if (answerFile) {
-      const ext = answerFile.name.split(".").pop();
-      const filePath = `${userId}/${task.id}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("answers")
-        .upload(filePath, answerFile, {
-          upsert: false,
-          contentType: answerFile.type || undefined,
-        });
-      if (uploadError) {
-        toast({
-          title: "Fayl yuklashda xatolik",
-          description: uploadError.message,
-          variant: "destructive",
-        });
-        return;
-      }
-      file_url = filePath;
-    }
-    // Javobni answers jadvaliga yozish
-    const { error: insertError } = await supabase.from("answers").insert([
-      {
-        task_id: task.id,
-        user_id: userId,
-        description: answerDesc,
-        file_url,
-        location_lat: location?.lat || null,
-        location_lng: location?.lng || null,
-      },
-    ]);
-    if (insertError) {
-      toast({
-        title: "Javob yuborishda xatolik",
-        description: insertError.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({ title: "Muvaffaqiyatli", description: "Javob yuborildi!" });
-      setOpenTask(null);
-    }
-  };
+  
+  const getIcon = (type: string) => (type === 'internship' ? '💼' : '📝');
+  const getColor = (type: string) => (type === 'internship' ? 'from-purple-600 to-blue-600' : 'from-green-600 to-emerald-600');
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Topshiriqlar</h1>
+    <div className="min-h-screen bg-black text-white pb-24">
+      {/* Header */}
+      <div className="px-4 sm:px-6 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold">My Tasks</h1>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full text-white hover:bg-zinc-900"
+            >
+              <Filter className="w-5 h-5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab('todo')}
+            className={cn(
+              'flex-1 py-3 rounded-2xl font-semibold transition-all',
+              activeTab === 'todo'
+                ? 'bg-white text-black'
+                : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+            )}
+          >
+            To Do
+          </button>
+          <button
+            onClick={() => setActiveTab('done')}
+            className={cn(
+              'flex-1 py-3 rounded-2xl font-semibold transition-all',
+              activeTab === 'done'
+                ? 'bg-white text-black'
+                : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+            )}
+          >
+            Done
+          </button>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Topshiriqlar</CardTitle>
-          <CardDescription>
-            Barcha topshiriqlarni ko'rish va boshqarish
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="homework" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="homework">Uyga vazifalar</TabsTrigger>
-              <TabsTrigger value="internship">Amaliyot</TabsTrigger>
-            </TabsList>
-            <TabsContent value="homework" className="space-y-4">
-              {tasks
-                .filter((task) => task.type === "homework")
-                .map((task) => (
-                  <div
+      {/* Task List */}
+      <div className="px-4 sm:px-6">
+        <AnimatePresence mode="wait">
+          {isLoading ? (
+             <div className="text-center py-12">
+               <div className="inline-block w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+             </div>
+          ) : filteredTasks.length === 0 ? (
+            <EmptyState
+              icon={activeTab === 'todo' ? Filter : CheckCircle2}
+              title={activeTab === 'todo' ? 'No pending tasks' : 'No completed tasks'}
+              description={
+                activeTab === 'todo'
+                  ? "You're all caught up! Check back later for new assignments."
+                  : "You haven't completed any tasks yet. Keep going!"
+              }
+            />
+          ) : (
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="space-y-3"
+            >
+              {filteredTasks.map((task, index) => {
+                const status = getTaskStatus(task);
+                const hasSubmitted = task.answers && task.answers.length > 0;
+                const score = hasSubmitted ? task.answers?.[0].score : null;
+
+                return (
+                  <motion.div
                     key={task.id}
-                    className="border border-border rounded-lg p-4 flex flex-col md:flex-row justify-between md:items-center gap-4"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
                   >
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{task.title}</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
-                          Uyga vazifa
-                        </span>
-                      </div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {task.group} • Muddati{" "}
-                        {task.deadline
-                          ? new Date(task.deadline).toLocaleDateString()
-                          : "-"}
-                      </div>
-                    </div>
-                    <Button
-                      className="min-w-[110px]"
-                      onClick={() => handleOpen(task)}
+                    <Card
+                      onClick={() =>
+                        navigate(`/student-dashboard/tasks/${task.id}`)
+                      }
+                      className="bg-zinc-900 border-zinc-800 p-4 cursor-pointer hover:bg-zinc-800 transition-colors"
                     >
-                      Topshirish
-                    </Button>
-                    <Dialog
-                      open={openTask?.id === task.id}
-                      onOpenChange={() => setOpenTask(null)}
-                    >
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Javob yuborish</DialogTitle>
-                          <DialogDescription>
-                            Uyga vazifa uchun javob yuboring.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <Input
-                          placeholder="Tavsif..."
-                          value={answerDesc}
-                          onChange={(e) => setAnswerDesc(e.target.value)}
-                          className="mb-2"
-                        />
-                        <Input
-                          type="file"
-                          onChange={handleFileChange}
-                          className="mb-2"
-                        />
-                        <DialogFooter>
-                          <Button onClick={() => handleSubmit(task)}>
-                            Yuborish
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                ))}
-            </TabsContent>
-            <TabsContent value="internship" className="space-y-4">
-              {tasks
-                .filter((task) => task.type === "internship")
-                .map((task) => (
-                  <div
-                    key={task.id}
-                    className="border border-border rounded-lg p-4 flex flex-col md:flex-row justify-between md:items-center gap-4"
-                  >
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{task.title}</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-800">
-                          Amaliyot
-                        </span>
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${
-                            isToday(task.date)
-                              ? "bg-green-100 text-green-800"
-                              : "bg-blue-100 text-blue-800"
-                          }`}
+                      <div className="flex items-start gap-4">
+                        {/* Icon */}
+                        <div
+                          className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${getColor(task.type)} flex items-center justify-center flex-shrink-0`}
                         >
-                          {isToday(task.date) ? "Bugun" : "Kelgusi"}
-                        </span>
-                      </div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {task.group} • Rejada{" "}
-                        {task.date
-                          ? new Date(task.date).toLocaleDateString()
-                          : "-"}
-                      </div>
-                    </div>
-                    <Button
-                      className="min-w-[110px]"
-                      onClick={() => handleOpen(task)}
-                      disabled={!isToday(task.date)}
-                    >
-                      Topshirish
-                    </Button>
-                    <Dialog
-                      open={openTask?.id === task.id}
-                      onOpenChange={() => setOpenTask(null)}
-                    >
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Javob yuborish</DialogTitle>
-                          <DialogDescription>
-                            Amaliyot topshirig'i uchun faqat amaliyot kuni va
-                            kerakli joyda bo'lsangiz javob yuborishingiz mumkin.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <Input
-                          placeholder="Tavsif..."
-                          value={answerDesc}
-                          onChange={(e) => setAnswerDesc(e.target.value)}
-                          className="mb-2"
-                          disabled={!isToday(task.date)}
-                        />
-                        <Input
-                          type="file"
-                          onChange={handleFileChange}
-                          className="mb-2"
-                          disabled={!isToday(task.date)}
-                        />
-                        <div className="mb-2">
-                          <Button
-                            type="button"
-                            onClick={handleGetLocation}
-                            disabled={!isToday(task.date)}
-                          >
-                            Lokatsiyani aniqlash
-                          </Button>
-                          {location && (
-                            <div className="text-xs mt-1 text-green-600">
-                              Lokatsiya: {location.lat.toFixed(4)},{" "}
-                              {location.lng.toFixed(4)}
-                            </div>
-                          )}
-                          {locationError && (
-                            <div className="text-xs mt-1 text-red-600">
-                              {locationError}
-                            </div>
-                          )}
+                          <span className="text-2xl">{getIcon(task.type)}</span>
                         </div>
-                        <DialogFooter>
-                          <Button
-                            onClick={() => handleSubmit(task)}
-                            disabled={!isToday(task.date)}
-                          >
-                            Yuborish
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                ))}
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <h3 className="font-semibold text-white truncate pr-2">
+                              {task.title}
+                            </h3>
+                            {status === 'overdue' && (
+                              <span className="px-2 py-1 rounded-full text-xs font-bold bg-red-600/20 text-red-500 whitespace-nowrap">
+                                OVERDUE
+                              </span>
+                            )}
+                            {score !== null && score !== undefined && (
+                              <span className="px-2 py-1 rounded-full text-xs font-bold bg-green-600/20 text-green-500 whitespace-nowrap">
+                                Score: {score}/10
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-zinc-400 mb-3 truncate">
+                            {task.type.charAt(0).toUpperCase() + task.type.slice(1)} • {task.groups?.name}
+                          </p>
+
+                          {/* Footer */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-sm">
+                              {hasSubmitted ? (
+                                <span className="text-zinc-500">
+                                  Submitted {task.answers && task.answers[0] ? new Date(task.answers[0].created_at).toLocaleDateString() : ''}
+                                </span>
+                              ) : (
+                                <>
+                                  <svg
+                                    className="w-4 h-4 text-zinc-500"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                  </svg>
+                                  <span
+                                    className={cn(
+                                      status === 'overdue'
+                                        ? 'text-red-500'
+                                        : 'text-zinc-500'
+                                    )}
+                                  >
+                                    {formatDeadline(task.deadline)}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                            {!hasSubmitted && (
+                              <Button
+                                size="sm"
+                                className="bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl h-8 px-4"
+                              >
+                                Submit
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
-};
-
-export default StudentTasks;
+}

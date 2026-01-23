@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft, FileText, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
 import { GradeAnswerModal } from "@/components/modals/GradeAnswerModal";
 import { useTeacherAnswersData } from "@/hooks/useTeacherAnswersData";
+import { supabase } from "@/lib/supabaseClient";
 
 interface Answer {
   id: string;
@@ -18,7 +20,8 @@ interface Answer {
 }
 
 export default function TeacherAnswers() {
-  const { userId } = useAuthStore(); // ustoz id
+  const { userId } = useAuthStore();
+  const navigate = useNavigate();
   const {
     data: answers = [],
     isLoading,
@@ -28,21 +31,22 @@ export default function TeacherAnswers() {
     isLoading: boolean;
     error: unknown;
   };
+  
   const [selectedAnswer, setSelectedAnswer] = useState<Answer | null>(null);
   const [isGradeModalOpen, setIsGradeModalOpen] = useState(false);
 
-  // Baholash
   const handleOpenGrade = (answer: Answer) => {
     setSelectedAnswer(answer);
     setIsGradeModalOpen(true);
   };
+
   const handleCloseGrade = () => {
     setIsGradeModalOpen(false);
     setSelectedAnswer(null);
   };
+
   const handleSaveGrade = async (score: number, teacherComment: string) => {
     if (!selectedAnswer) return;
-    // Supabase answers jadvalida score va teacher_comment ni yangilash
     await supabase
       .from("answers")
       .update({ score, teacher_comment: teacherComment })
@@ -51,70 +55,115 @@ export default function TeacherAnswers() {
   };
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">Barcha javoblar</h1>
-      <div className="space-y-3">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30 pb-20">
+      {/* Header */}
+      <div className="sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="p-2 hover:bg-white/50 rounded-xl transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <h1 className="text-xl font-bold text-gray-900">Barcha javoblar</h1>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {isLoading ? (
-          <div className="text-center py-8 text-muted-foreground">
-            Yuklanmoqda...
+          <div className="text-center py-16">
+            <div className="inline-block w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : error ? (
-          <div className="text-center py-8 text-red-500">
-            Xatolik:{" "}
-            {typeof error === "object" && error && "message" in error
-              ? (error as { message?: string }).message
-              : String(error)}
+          <div className="text-center py-16">
+            <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <span className="text-3xl">⚠️</span>
+            </div>
+            <p className="text-red-600">
+              Xatolik: {typeof error === "object" && error && "message" in error
+                ? (error as { message?: string }).message
+                : String(error)}
+            </p>
           </div>
         ) : answers.length === 0 ? (
-          <div className="text-muted-foreground">Hali javob yuborilmagan</div>
-        ) : (
-          answers.map((answer) => (
-            <div
-              key={answer.id}
-              className="border border-border rounded-lg p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 cursor-pointer hover:bg-muted/50 transition"
-              onClick={() => handleOpenGrade(answer)}
-            >
-              <div>
-                <div className="font-medium">{answer.student}</div>
-                <div className="text-sm text-muted-foreground">
-                  {answer.group} • {answer.task}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  Yuborilgan: {answer.submittedAt}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {answer.description && answer.description !== "EMPTY" ? (
-                    answer.description
-                  ) : (
-                    <span className="text-muted-foreground">Tavsif yo'q</span>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {answer.score !== null ? (
-                  <span className="px-2 py-0.5 rounded bg-green-100 text-green-800 text-xs">
-                    {answer.score} / 10
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 text-xs">
-                    Baholanmagan
-                  </span>
-                )}
-                <Button
-                  size="sm"
-                  variant={answer.score !== null ? "outline" : "default"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenGrade(answer);
-                  }}
-                >
-                  {answer.score !== null ? "Tahrirlash" : "Baholash"}
-                </Button>
-              </div>
+          <div className="text-center py-16">
+            <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center mx-auto mb-4 shadow-sm">
+              <FileText className="w-10 h-10 text-gray-400" />
             </div>
-          ))
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Hali javob yuborilmagan
+            </h3>
+            <p className="text-gray-600">
+              Talabalar javob yuborishni kutmoqda
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {answers.map((answer) => (
+              <div
+                key={answer.id}
+                className="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group"
+                onClick={() => handleOpenGrade(answer)}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0">
+                    <span className="text-lg font-bold text-blue-600">
+                      {answer.student.charAt(0)}
+                    </span>
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 truncate">{answer.student}</h3>
+                    <p className="text-sm text-gray-600 truncate">
+                      {answer.group} • {answer.task}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Yuborilgan: {answer.submittedAt}
+                    </p>
+                    {answer.description && answer.description !== "EMPTY" && (
+                      <p className="text-xs text-gray-600 mt-1 line-clamp-1">
+                        {answer.description}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 flex-shrink-0">
+                    {answer.score !== null ? (
+                      <>
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 whitespace-nowrap">
+                          {answer.score} / 10
+                        </span>
+                        <span className="hidden sm:inline-block px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          Completed
+                        </span>
+                      </>
+                    ) : (
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 whitespace-nowrap">
+                        Needs Review
+                      </span>
+                    )}
+                    
+                    <Button
+                      size="sm"
+                      variant={answer.score !== null ? "outline" : "default"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenGrade(answer);
+                      }}
+                      className="hidden sm:block"
+                    >
+                      {answer.score !== null ? "Tahrirlash" : "Baholash"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
+
       <GradeAnswerModal
         isOpen={isGradeModalOpen}
         onClose={handleCloseGrade}

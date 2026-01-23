@@ -1,26 +1,32 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  BookOpen,
-  CheckCircle2,
-  Clock,
-  Bell,
-  Plus,
-  Flame
-} from "lucide-react";
-import { useAuthStore } from "@/store/authStore";
-import { useStudentDashboardData } from "@/hooks/useStudentDashboardData";
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Bell, Calendar, CheckCircle2, Users } from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
+import { useStudentDashboardData } from '@/hooks/useStudentDashboardData';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
 
 interface Task {
   id: string;
   title: string;
   description?: string;
-  type: "homework" | "internship";
+  type: 'homework' | 'internship';
   deadline?: string;
   date?: string;
   group?: string;
   hasSubmitted?: boolean;
   score?: number | null;
+}
+
+interface Group {
+  id: string;
+  title: string;
+  schedule?: string;
+  status?: string;
+  nextTask?: string;
+  memberCount?: number;
 }
 
 interface StudentDashboardData {
@@ -30,12 +36,13 @@ interface StudentDashboardData {
     averageScore: number;
   };
   recentTasks: Task[];
-  groups: any[];
+  groups: Group[];
 }
 
 const StudentDashboard = () => {
   const { userId, name } = useAuthStore();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const { data, isLoading } = useStudentDashboardData(userId) as {
     data: StudentDashboardData | undefined;
@@ -49,222 +56,263 @@ const StudentDashboard = () => {
     averageScore: 0,
   };
 
-  const recentTasks = data?.recentTasks || [];
-
-  const getTaskStatus = (task: Task) => {
-    if (task.hasSubmitted && task.score !== null && task.score !== undefined) {
-      return "done";
-    }
-    
-    const taskDate = task.type === "homework" ? task.deadline : task.date;
-    if (!taskDate) return "upcoming";
-    
-    const dueDate = new Date(taskDate);
-    const now = new Date();
-    const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (daysUntilDue <= 2 && !task.hasSubmitted) {
-      return "due_soon";
-    }
-    
-    return "upcoming";
-  };
-
-  const getStatusBadge = (status: string) => {
-    const badges = {
-      due_soon: {
-        bg: "bg-red-100",
-        text: "text-red-700",
-        label: "DUE SOON",
-      },
-      done: {
-        bg: "bg-green-100",
-        text: "text-green-700",
-        label: "DONE",
-      },
-      upcoming: {
-        bg: "bg-gray-100",
-        text: "text-gray-700",
-        label: "UPCOMING",
-      },
-    };
-    const badge = badges[status as keyof typeof badges] || badges.upcoming;
-    return (
-      <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-bold ${badge.bg} ${badge.text} whitespace-nowrap`}>
-        {badge.label}
-      </span>
-    );
-  };
-
-  const getStatusIcon = (status: string) => {
-    if (status === "due_soon") {
-      return <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-red-100 flex items-center justify-center flex-shrink-0">
-        <span className="text-2xl">⏰</span>
-      </div>;
-    }
-    if (status === "done") {
-      return <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-green-100 flex items-center justify-center flex-shrink-0">
-        <span className="text-2xl">✅</span>
-      </div>;
-    }
-    return <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-      <span className="text-2xl">📚</span>
-    </div>;
-  };
+  const groups = data?.groups || [];
 
   // Calculate progress percentage
   const totalTasks = stats.completedTasks + stats.pendingTasks;
-  const progressPercentage = totalTasks > 0 
-    ? Math.round((stats.completedTasks / totalTasks) * 100) 
-    : 0;
+  const progressPercentage =
+    totalTasks > 0 ? Math.round((stats.completedTasks / totalTasks) * 100) : 0;
 
-  // Mock streak for now (can be calculated from submission dates later)
-  const streakDays = 12;
+  const currentDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+
+  const getGroupIcon = (index: number) => {
+    const icons = ['💻', '🎨', '💾', '💬'];
+    return icons[index % icons.length];
+  };
+
+  const getGroupColor = (index: number) => {
+    const colors = [
+      'from-blue-600 to-cyan-600',
+      'from-pink-600 to-purple-600',
+      'from-yellow-600 to-orange-600',
+      'from-green-600 to-emerald-600',
+    ];
+    return colors[index % colors.length];
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50/30 to-blue-50/30 pb-20">
+    <div className="min-h-screen bg-black text-white pb-24">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
-                <span className="text-white font-bold text-lg">
-                  {name?.charAt(0) || "W"}
-                </span>
-                <div className="absolute w-3 h-3 bg-green-500 rounded-full border-2 border-white -bottom-0.5 -right-0.5"></div>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide">LEVEL 12</p>
-                <h1 className="text-lg font-bold text-gray-900">{name || "Student"}</h1>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button className="p-2 hover:bg-gray-100 rounded-xl transition-colors relative">
-                <Bell className="w-5 h-5 text-gray-600" />
-                <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></div>
-              </button>
+      <div className="px-4 sm:px-6 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <p className="text-zinc-400 text-sm mb-1">{t('common.welcome')},</p>
+            <h1 className="text-2xl font-bold">{name || 'Student'}</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full text-white hover:bg-zinc-900 relative"
+            >
+              <Bell className="w-5 h-5" />
+              <div className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />
+            </Button>
+            <div
+              onClick={() => navigate('/profile')}
+              className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center cursor-pointer"
+            >
+              <span className="text-white font-bold text-lg">
+                {name?.charAt(0) || 'S'}
+              </span>
             </div>
           </div>
+        </div>
+
+        {/* Weekly Progress Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <Card className="bg-zinc-900 border-zinc-800 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">{t('dashboard.weekly_progress')}</h2>
+              <span className="text-sm text-zinc-400">{currentDate}</span>
+            </div>
+
+            <div className="mb-4">
+              <div className="flex items-end gap-2 mb-2">
+                <span className="text-5xl font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+                  {progressPercentage}%
+                </span>
+              </div>
+              <p className="text-sm text-zinc-400 mb-4">{t('dashboard.stats.completed_tasks')}</p>
+
+              <ProgressBar
+                percentage={progressPercentage}
+                showPercentage={false}
+                animated={true}
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                <span className="text-zinc-400">
+                  {stats.completedTasks}/{totalTasks} {t('tasks.done')}
+                </span>
+              </div>
+              <span className="text-zinc-500">
+                You're ahead of 70% of students
+              </span>
+            </div>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="px-4 sm:px-6 mb-6">
+        <div className="grid grid-cols-2 gap-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1 }}
+          >
+            <Card
+              onClick={() => navigate('/student-dashboard/tasks')}
+              className="bg-zinc-900 border-zinc-800 p-6 cursor-pointer hover:bg-zinc-800 transition-colors"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-blue-600/20 flex items-center justify-center mb-4">
+                <svg
+                  className="w-6 h-6 text-blue-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                  />
+                </svg>
+              </div>
+              <h3 className="font-semibold mb-1">{t('dashboard.quick_actions.view_tasks')}</h3>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.15 }}
+          >
+            <Card
+              onClick={() => navigate('/student-dashboard/calendar')}
+              className="bg-zinc-900 border-zinc-800 p-6 cursor-pointer hover:bg-zinc-800 transition-colors"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-green-600/20 flex items-center justify-center mb-4">
+                <Calendar className="w-6 h-6 text-green-500" />
+              </div>
+              <h3 className="font-semibold mb-1">{t('dashboard.quick_actions.schedule')}</h3>
+            </Card>
+          </motion.div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Progress Card */}
-        <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900">Course Progress</h2>
-            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
-              <Flame className="w-4 h-4 text-orange-500 flex-shrink-0" />
-              <span className="font-bold text-orange-500 whitespace-nowrap">{streakDays} Day Streak</span>
-            </div>
-          </div>
-          <div className="flex items-end gap-2 mb-2">
-            <div className="text-4xl sm:text-5xl font-bold text-gray-900">{progressPercentage}</div>
-            <div className="text-xl sm:text-2xl font-bold text-gray-400 mb-1">%</div>
-          </div>
-          <div className="mb-3 sm:mb-4">
-            <div className="w-full bg-gray-100 rounded-full h-2">
-              <div 
-                className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
-                style={{ width: `${progressPercentage}%` }}
-              ></div>
-            </div>
-          </div>
-          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-600">
-            <span className="truncate mr-2">Progress through your courses</span>
-            <span className="whitespace-nowrap">
-              {totalTasks > 0 ? `${stats.pendingTasks} tasks remaining` : 'No tasks yet'}
-            </span>
-          </div>
+      {/* My Groups */}
+      <div className="px-4 sm:px-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">{t('dashboard.my_groups.title')}</h2>
+          <Button
+            variant="link"
+            onClick={() => navigate('/student-dashboard/groups')}
+            className="text-blue-500 hover:text-blue-400 p-0 h-auto"
+          >
+           {t('common.view_all')} →
+          </Button>
         </div>
 
-        {/* Current Quests */}
-        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-base sm:text-xl font-bold text-gray-900">CURRENT QUESTS</h2>
-            <button 
-              onClick={() => navigate("/student-dashboard/tasks")}
-              className="text-blue-600 hover:text-blue-700 font-semibold text-xs sm:text-sm whitespace-nowrap"
-            >
-              View All
-            </button>
+        {isLoading ? (
+          <div className="text-center py-12">
+            <div className="inline-block w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
           </div>
-
-          {isLoading ? (
-            <div className="text-center py-12">
-              <div className="inline-block w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          ) : recentTasks.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                <BookOpen className="w-8 h-8 text-gray-400" />
+        ) : groups.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Card className="bg-gradient-to-r from-blue-600 to-cyan-600 border-0 p-6 cursor-pointer hover:opacity-90 transition-opacity">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
+                  <Users className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-white mb-1">
+                    {t('dashboard.my_groups.join_new')}
+                  </h3>
+                  <p className="text-sm text-white/80">
+                    Find study partners and mentors
+                  </p>
+                </div>
+                <svg
+                  className="w-6 h-6 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
               </div>
-              <p className="text-gray-600">Hali topshiriq yo'q</p>
-            </div>
-          ) : (
-            <div className="space-y-2 sm:space-y-3">
-              {recentTasks.slice(0, 5).map((task) => {
-                const status = getTaskStatus(task);
-                return (
-                  <div
-                    key={task.id}
-                    className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl hover:bg-gray-50 transition-colors cursor-pointer group"
-                    onClick={() => navigate(`/student-dashboard/tasks/${task.id}`)}
-                  >
-                    {getStatusIcon(status)}
+            </Card>
+          </motion.div>
+        ) : (
+          <div className="space-y-3">
+            {groups.slice(0, 3).map((group, index) => (
+              <motion.div
+                key={group.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <Card
+                  onClick={() =>
+                    navigate(`/student-dashboard/groups/${group.id}`)
+                  }
+                  className="bg-zinc-900 border-zinc-800 p-4 cursor-pointer hover:bg-zinc-800 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${getGroupColor(
+                        index
+                      )} flex items-center justify-center flex-shrink-0`}
+                    >
+                      <span className="text-2xl">{getGroupIcon(index)}</span>
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-sm sm:text-base text-gray-900 truncate">{task.title}</h3>
-                      <p className="text-xs sm:text-sm text-gray-600 truncate">
-                        {task.description || (task.type === "homework" ? "Uyga vazifa" : "Amaliyot")}
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold truncate">{group.title}</h3>
+                        {group.status && (
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                              group.status === 'Active'
+                                ? 'bg-green-600/20 text-green-500'
+                                : group.status === 'Review'
+                                ? 'bg-purple-600/20 text-purple-500'
+                                : 'bg-yellow-600/20 text-yellow-500'
+                            }`}
+                          >
+                            {group.status}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-zinc-400 truncate">
+                        {group.schedule || 'No schedule'}
                       </p>
                     </div>
-                    {getStatusBadge(status)}
+                    <div className="text-right">
+                      {group.memberCount && (
+                        <div className="flex items-center gap-1 text-xs text-zinc-500 mb-1">
+                          <Users className="w-3 h-3" />
+                          <span>{group.memberCount}</span>
+                        </div>
+                      )}
+                      {group.nextTask && (
+                        <p className="text-xs text-zinc-500 truncate max-w-[120px]">
+                          Next: {group.nextTask}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-blue-100 flex items-center justify-center mb-3 sm:mb-4">
-              <span className="text-2xl">🎯</span>
-            </div>
-            <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{stats.completedTasks}</div>
-            <div className="text-xs sm:text-sm text-gray-600">Completed Tasks</div>
+                </Card>
+              </motion.div>
+            ))}
           </div>
-
-          <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-orange-100 flex items-center justify-center mb-3 sm:mb-4">
-              <span className="text-2xl">⏰</span>
-            </div>
-            <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{stats.pendingTasks}</div>
-            <div className="text-xs sm:text-sm text-gray-600">Pending Tasks</div>
-          </div>
-
-          <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100 col-span-2 lg:col-span-1">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-purple-100 flex items-center justify-center mb-3 sm:mb-4">
-              <span className="text-2xl">🏆</span>
-            </div>
-            <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
-              {stats.averageScore > 0 ? stats.averageScore.toFixed(1) : "N/A"}
-            </div>
-            <div className="text-xs sm:text-sm text-gray-600">Average Score</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Floating Action Button */}
-      <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50">
-        <button
-          onClick={() => navigate("/student-dashboard/groups")}
-          className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 shadow-lg hover:shadow-xl flex items-center justify-center text-white transition-all hover:scale-110"
-        >
-          <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
-        </button>
+        )}
       </div>
     </div>
   );

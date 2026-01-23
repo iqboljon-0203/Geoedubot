@@ -1,232 +1,144 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { GraduationCap, Users } from "lucide-react";
-import { useAuthStore } from "@/store/authStore";
-import { supabase } from "@/lib/supabaseClient";
-import { useToast } from "@/hooks/use-toast";
-import { useTelegram } from "@/hooks/useTelegram";
-import type { UserRole } from "@/types";
+import { useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/store/authStore';
+import { GraduationCap, BookOpen } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const RoleSelection = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const { setUser } = useAuthStore();
-  const { user: telegramUser } = useTelegram();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { setRole } = useAuthStore();
+  const { t } = useTranslation();
 
-  const handleRoleSelect = async (role: UserRole) => {
-    if (!telegramUser) {
-      toast({
-        title: "Xatolik",
-        description: "Telegram ma'lumotlari topilmadi",
-        variant: "destructive",
-      });
-      return;
-    }
+  // TEMPORARY: Auto-redirect removed
+  // useEffect logic was here
 
-    setIsLoading(true);
-    try {
-      const fullName = `${telegramUser.first_name}${telegramUser.last_name ? ' ' + telegramUser.last_name : ''}`;
-      
-      // Telegram user ID asosida profile yaratish/yangilash
-      const { data: existingProfile, error: selectError } = await supabase
-        .from("profiles")
-        .select("id, role, full_name")
-        .eq("telegram_user_id", telegramUser.id)
-        .maybeSingle();
-
-      if (selectError) throw selectError;
-
-      let userId: string;
-      let profileRole: UserRole;
-
-      if (existingProfile) {
-        // Profile mavjud - faqat rolni tekshiramiz
-        userId = existingProfile.id;
-        profileRole = existingProfile.role as UserRole;
-        
-        toast({
-          title: "Xush kelibsiz!",
-          description: `Siz ${profileRole === 'teacher' ? 'O\'qituvchi' : 'Talaba'} sifatida tizimga kirdingiz`,
-        });
-      } else {
-        // Yangi profile yaratish
-        const { data: newProfile, error: insertError } = await supabase
-          .from("profiles")
-          .insert([
-            {
-              telegram_user_id: telegramUser.id,
-              full_name: fullName,
-              role: role,
-              avatar: telegramUser.photo_url || null,
-            },
-          ])
-          .select("id, role")
-          .single();
-
-        if (insertError) throw insertError;
-        if (!newProfile) throw new Error("Profile yaratilmadi");
-
-        userId = newProfile.id;
-        profileRole = role;
-
-        toast({
-          title: "Muvaffaqiyatli!",
-          description: `Siz ${role === 'teacher' ? 'O\'qituvchi' : 'Talaba'} sifatida ro'yxatdan o'tdingiz`,
-        });
-      }
-
-      // Auth store'ga saqlash
-      setUser({
-        id: userId,
-        email: telegramUser.username || `telegram_${telegramUser.id}`,
-        name: fullName,
-        role: profileRole,
-        profileUrl: telegramUser.photo_url || null,
-      });
-
-      // Dashboard'ga yo'naltirish
-      navigate(profileRole === "teacher" ? "/teacher-dashboard" : "/student-dashboard");
-    } catch (error: any) {
-      console.error("Role selection error:", error);
-      toast({
-        title: "Xatolik",
-        description: error.message || "Rolni saqlashda xatolik yuz berdi",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleRoleSelect = (role: 'teacher' | 'student') => {
+    setRole(role);
+    const path = role === 'teacher' ? '/teacher-dashboard' : '/student-dashboard';
+    navigate(path);
   };
 
-  if (!telegramUser) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Yuklanmoqda...</CardTitle>
-            <CardDescription>Telegram ma'lumotlari yuklanmoqda</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
+  const roles = [
+    {
+      id: 'teacher',
+      title: t('auth.teacher'),
+      description: t('auth.teacher_desc'),
+      icon: GraduationCap,
+      gradient: 'from-blue-500 to-blue-600',
+      languages: ['UZ', 'RU', 'ENG'],
+    },
+    {
+      id: 'student',
+      title: t('auth.student'),
+      description: t('auth.student_desc'),
+      icon: BookOpen,
+      gradient: 'from-purple-500 to-purple-600',
+      languages: ['UZ', 'RU', 'ENG'],
+    },
+  ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
-      <div className="w-full max-w-4xl">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            Xush kelibsiz, {telegramUser.first_name}!
-          </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-300">
-            Rolni tanlang va platformadan foydalanishni boshlang
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-slate-50 to-zinc-100 dark:from-black dark:to-zinc-900 flex flex-col items-center justify-center p-6">
+      {/* Logo */}
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="mb-8"
+      >
+        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-600 to-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <GraduationCap className="w-10 h-10 text-white" strokeWidth={2} />
         </div>
+      </motion.div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Teacher Card */}
-          <Card
-            className="cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-105 border-2 hover:border-blue-500"
-            onClick={() => !isLoading && handleRoleSelect("teacher")}
-          >
-            <CardHeader className="text-center pb-4">
-              <div className="mx-auto mb-4 w-20 h-20 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                <GraduationCap className="w-10 h-10 text-blue-600 dark:text-blue-400" />
-              </div>
-              <CardTitle className="text-2xl">O'qituvchi</CardTitle>
-              <CardDescription className="text-base">
-                Guruhlar yarating, topshiriqlar bering va talabalarni baholang
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400 mb-6">
-                <li className="flex items-center">
-                  <span className="mr-2">✓</span>
-                  Guruhlar boshqaruvi
-                </li>
-                <li className="flex items-center">
-                  <span className="mr-2">✓</span>
-                  Topshiriqlar yaratish
-                </li>
-                <li className="flex items-center">
-                  <span className="mr-2">✓</span>
-                  Javoblarni baholash
-                </li>
-                <li className="flex items-center">
-                  <span className="mr-2">✓</span>
-                  Statistika va hisobotlar
-                </li>
-              </ul>
-              <Button
-                className="w-full"
-                size="lg"
-                disabled={isLoading}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRoleSelect("teacher");
-                }}
-              >
-                {isLoading ? "Yuklanmoqda..." : "O'qituvchi sifatida davom etish"}
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Student Card */}
-          <Card
-            className="cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-105 border-2 hover:border-green-500"
-            onClick={() => !isLoading && handleRoleSelect("student")}
-          >
-            <CardHeader className="text-center pb-4">
-              <div className="mx-auto mb-4 w-20 h-20 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                <Users className="w-10 h-10 text-green-600 dark:text-green-400" />
-              </div>
-              <CardTitle className="text-2xl">Talaba</CardTitle>
-              <CardDescription className="text-base">
-                Guruhlarga qo'shiling, topshiriqlarni bajaring va natijalarni ko'ring
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400 mb-6">
-                <li className="flex items-center">
-                  <span className="mr-2">✓</span>
-                  Guruhlarga qo'shilish
-                </li>
-                <li className="flex items-center">
-                  <span className="mr-2">✓</span>
-                  Topshiriqlarni bajarish
-                </li>
-                <li className="flex items-center">
-                  <span className="mr-2">✓</span>
-                  Javoblarni yuklash
-                </li>
-                <li className="flex items-center">
-                  <span className="mr-2">✓</span>
-                  Baholarni ko'rish
-                </li>
-              </ul>
-              <Button
-                className="w-full"
-                size="lg"
-                variant="secondary"
-                disabled={isLoading}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRoleSelect("student");
-                }}
-              >
-                {isLoading ? "Yuklanmoqda..." : "Talaba sifatida davom etish"}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
-          Telegram orqali avtomatik tizimga kirildi
+      {/* Title */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.5 }}
+        className="text-center mb-12"
+      >
+        <h1 className="text-3xl font-bold text-zinc-900 dark:text-white mb-2">
+          {t('auth.select_role')}
+        </h1>
+        <p className="text-zinc-600 dark:text-zinc-400">
+           
         </p>
+      </motion.div>
+
+      {/* Role Cards */}
+      <div className="w-full max-w-md space-y-4 mb-8">
+        {roles.map((role, index) => {
+          const Icon = role.icon;
+          return (
+            <motion.div
+              key={role.id}
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 + index * 0.1, duration: 0.5 }}
+              whileHover={{ scale: 1.02, y: -4 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleRoleSelect(role.id as 'teacher' | 'student')}
+              className="relative bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-zinc-200/60 dark:border-zinc-800 hover:shadow-xl hover:border-zinc-300/60 transition-all cursor-pointer group"
+            >
+              {/* Arrow Icon */}
+              <motion.div
+                className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                initial={{ x: -10 }}
+                whileHover={{ x: 0 }}
+              >
+                <svg
+                  className="w-6 h-6 text-zinc-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </motion.div>
+
+              <div className="flex items-start gap-4">
+                {/* Icon */}
+                <motion.div
+                  whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                  transition={{ duration: 0.5 }}
+                  className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${role.gradient} flex items-center justify-center shadow-lg flex-shrink-0`}
+                >
+                  <Icon className="w-8 h-8 text-white" strokeWidth={2} />
+                </motion.div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">
+                    {role.title}
+                  </h3>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 leading-relaxed">
+                    {role.description}
+                  </p>
+
+                  {/* Language Tags - Removed as it is redundant now that we have app-wide language */}
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
+
+      {/* Step Indicator */}
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.6 }}
+        className="text-sm text-zinc-500 uppercase tracking-wider"
+      >
+        STEP 1 OF 3
+      </motion.p>
     </div>
   );
 };

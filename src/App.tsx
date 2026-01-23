@@ -22,6 +22,8 @@ import TeacherAnswers from "./pages/teacher/TeacherAnswers";
 import TeacherTasks from "./pages/teacher/TeacherTasks";
 import AddTask from "./pages/teacher/AddTask";
 import GroupDetails from "./pages/teacher/GroupDetails";
+import CreateTask from "./pages/teacher/CreateTask";
+import GradeSubmission from "./pages/teacher/GradeSubmission";
 
 // Student pages
 import StudentDashboard from "./pages/student/StudentDashboard";
@@ -30,11 +32,15 @@ import StudentGroups from "./pages/student/StudentGroups";
 import StudentGroupTasks from "./pages/student/StudentGroupTasks";
 import StudentCalendar from "./pages/student/StudentCalendar";
 import StudentGrades from "./pages/student/StudentGrades";
+import JoinGroup from "./pages/student/JoinGroup";
+import StudentTaskDetails from "./pages/student/StudentTaskDetails";
+import StudentTaskResult from "./pages/student/StudentTaskResult";
 
 // Shared pages
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
+import SplashScreen from "./pages/SplashScreen";
 
 const queryClient = new QueryClient();
 
@@ -82,8 +88,8 @@ const App = () => (
               <Sonner />
 
               <Routes>
-                {/* Root - Redirect to role selection */}
-                <Route path="/" element={<Navigate to="/role-selection" replace />} />
+                {/* Splash Screen */}
+                <Route path="/" element={<SplashScreen />} />
                 
                 {/* Role Selection (Telegram Auth Entry Point) */}
                 <Route path="/role-selection" element={<RoleSelection />} />
@@ -104,8 +110,37 @@ const App = () => (
                   <Route path="tasks" element={<TeacherTasks />} />
                   <Route path="tasks/add" element={<AddTask />} />
                   <Route path="groups/:groupId" element={<GroupDetails />} />
+                  <Route path="groups/:groupId/create-task" element={<CreateTask />} />
+                  <Route path="answers/:answerId/grade" element={<GradeSubmission />} />
                 </Route>
 
+
+                <Route
+                  path="/student-dashboard/tasks/:taskId"
+                  element={
+                    <ProtectedRoute allowedRoles={["student"]}>
+                      <StudentTaskDetails />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/student-dashboard/tasks/:taskId/result"
+                  element={
+                    <ProtectedRoute allowedRoles={["student"]}>
+                      <StudentTaskResult />
+                    </ProtectedRoute>
+                  }
+                />
+              
+                <Route
+                  path="/join-group"
+                  element={
+                    <ProtectedRoute allowedRoles={["student"]}>
+                      <JoinGroup />
+                    </ProtectedRoute>
+                  }
+                />
               
                 <Route
                   path="/student-dashboard"

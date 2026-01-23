@@ -1,0 +1,87 @@
+{
+  "common": {
+    "welcome": "Xush kelibsiz",
+    "loading": "Yuklanmoqda...",
+    "error": "Xatolik yuz berdi",
+    "success": "Muvaffaqiyatli",
+    "save": "Saqlash",
+    "cancel": "Bekor qilish",
+    "delete": "O'chirish",
+    "edit": "Tahrirlash",
+    "back": "Orqaga",
+    "submit": "Yuborish",
+    "search": "Qidirish",
+    "view_all": "Barchasini ko'rish"
+  },
+  "auth": {
+    "select_role": "Davom ettirish uchun rolingizni tanlang",
+    "teacher": "O'qituvchi",
+    "student": "Talaba",
+    "teacher_desc": "Guruhlarni boshqaring, vazifalar yarating va baholang.",
+    "student_desc": "Guruhlarga qo'shiling, vazifalarni bajaring va baholaringizni kuzatib boring.",
+    "continue": "Davom etish"
+  },
+  "dashboard": {
+    "welcome_back": "Xush kelibsiz, {{name}}! 👋",
+    "teacher_subtitle": "Bugun guruhlaringizda nimalar bo'layotganini ko'ring.",
+    "student_subtitle": "O'qish jarayoningizni kuzatib boring.",
+    "stats": {
+      "active_groups": "Faol Guruhlar",
+      "pending_reviews": "Tekshirilmagan",
+      "total_students": "Jami Talabalar",
+      "total_tasks": "Jami Topshiriqlar",
+      "completed_tasks": "Bajarilgan",
+      "pending_tasks": "Qolgan Vazifalar",
+      "average_score": "O'rtacha Baho"
+    },
+    "quick_actions": {
+      "title": "Tezkor Amallar",
+      "new_group": "Yangi Guruh",
+      "create_task": "Vazifa Yaratish",
+      "check_work": "Ishlarni Tekshirish",
+      "schedule": "Dars Jadvali",
+      "view_tasks": "Vazifalarni Ko'rish",
+      "join_group": "Guruhga Qo'shilish"
+    },
+    "recent_activity": {
+      "title": "So'nggi Faoliyat",
+      "no_activity": "Hozircha faoliyat yo'q"
+    },
+    "my_groups": {
+        "title": "Mening Guruhlarim",
+        "join_new": "Yangi guruhga qo'shilish"
+    },
+    "weekly_progress": "Haftalik Natija"
+  },
+  "tasks": {
+    "title": "Vazifalar",
+    "my_tasks": "Mening Vazifalarim",
+    "todo": "Bajarish kerak",
+    "done": "Bajarildi",
+    "overdue": "Muddati o'tgan",
+    "submitted": "Topshirilgan",
+    "pending": "Kutilmoqda",
+    "score": "Baho",
+    "deadline": "Muddat",
+    "instructions": "Yo'riqnoma",
+    "resources": "Resurslar",
+    "submit_answer": "Javobni Yuborish",
+    "update_submission": "Javobni Yangilash",
+    "points_possible": "Maksimal Ball",
+    "remaining": "qoldi"
+  },
+  "groups": {
+    "create_new": "Guruh Yaratish",
+    "group_name": "Guruh nomi",
+    "description": "Tavsif",
+    "members": "A'zolar",
+    "join_code": "Guruh kodi"
+  },
+  "settings": {
+    "title": "Sozlamalar",
+    "language": "Til",
+    "theme": "Mavzu",
+    "dark_mode": "Tungi rejim",
+    "light_mode": "Kunduzgi rejim"
+  }
+}

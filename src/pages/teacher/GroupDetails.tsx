@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AddTaskModal } from "@/components/modals/AddTaskModal";
+import { MapPin, Calendar, FileText } from "lucide-react";
 
 export default function GroupDetails() {
   const { groupId } = useParams();
@@ -40,89 +41,147 @@ export default function GroupDetails() {
   if (!group) return <div className="p-8">Guruh topilmadi</div>;
 
   return (
-    <div className="max-w-3xl mx-auto py-8 space-y-8">
-      <Button variant="outline" onClick={() => navigate(-1)}>
-        ← Orqaga
-      </Button>
-      <div className="flex justify-between items-center">
-        <div />
-        <Button
-          onClick={() => setIsAddTaskOpen(true)}
-          className="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-semibold transition"
-        >
-          Guruhga topshiriq qo'shish
-        </Button>
+    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-slate-50 to-zinc-100 pb-20">
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-xl border-b border-zinc-200/60">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => navigate(-1)}
+              className="rounded-xl"
+            >
+              ← Orqaga
+            </Button>
+            <Button
+              onClick={() => setIsAddTaskOpen(true)}
+              className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 font-semibold"
+            >
+              Guruhga topshiriq qo'shish
+            </Button>
+          </div>
+        </div>
       </div>
-      <Card className="rounded-2xl shadow-md border border-border bg-white dark:bg-muted/60">
-        <CardHeader>
-          <CardTitle className="text-2xl mb-2">{group.name}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <div>
-            <span className="font-bold">Manzil:</span> {group.address}
-          </div>
-          <div>
-            <span className="font-bold">Kenglik/Uzunlik:</span> {group.lat},{" "}
-            {group.lng}
-          </div>
-          <div>
-            <span className="font-bold">Yaratilgan:</span>{" "}
-            {group.created_at?.split("T")[0]}
-          </div>
-        </CardContent>
-      </Card>
-      <div>
-        <h2 className="text-xl font-bold mb-4">Guruh topshiriqlari</h2>
-        {tasks.length === 0 ? (
-          <div>Hali topshiriq yo'q</div>
-        ) : (
-          <div className="space-y-5">
-            {tasks.map((task) => (
-              <Card
-                key={task.id}
-                className="rounded-2xl shadow-sm border border-border bg-white dark:bg-muted/60 hover:shadow-lg transition"
-              >
-                <CardHeader className="flex flex-row items-center gap-2 pb-1">
-                  <CardTitle className="text-lg">{task.title}</CardTitle>
-                  <span
-                    className={`text-xs px-2 py-1 rounded font-semibold ${
-                      task.type === "homework"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-green-100 text-green-700"
-                    }`}
-                  >
-                    {task.type === "homework" ? "Uyga vazifa" : "Amaliyot"}
-                  </span>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-sm text-muted-foreground mb-1">
-                    {task.type === "homework"
-                      ? `Deadline: ${task.deadline ? new Date(task.deadline).toLocaleDateString() : "-"}`
-                      : `Amaliyot kuni: ${task.date ? new Date(task.date).toLocaleDateString() : "-"}`}
-                  </div>
-                  <div className="text-xs text-muted-foreground mb-1">
-                    {task.description}
-                  </div>
-                  {task.file_url && (
-                    <a
-                      href={
-                        supabase.storage
-                          .from("tasks")
-                          .getPublicUrl(task.file_url).data.publicUrl
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 underline text-xs"
-                    >
-                      Faylni ko'rish
-                    </a>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+
+      {/* Content */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Group Info Card */}
+        <Card className="rounded-3xl shadow-sm border border-zinc-200/60 bg-white overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-zinc-200/60">
+            <CardTitle className="text-2xl font-bold text-zinc-900">{group.name}</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <MapPin className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-zinc-700 mb-1">Manzil:</p>
+                <p className="text-zinc-900">{group.address}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+                <MapPin className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-zinc-700 mb-1">Kenglik/Uzunlik:</p>
+                <p className="text-zinc-900 font-mono text-sm">
+                  {group.latitude}, {group.longitude}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                <Calendar className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-zinc-700 mb-1">Yaratilgan:</p>
+                <p className="text-zinc-900">
+                  {group.created_at ? new Date(group.created_at).toLocaleDateString('uz-UZ') : '-'}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tasks Section */}
+        <div>
+          <h2 className="text-xl font-bold text-zinc-900 mb-4 flex items-center gap-2">
+            <FileText className="w-6 h-6" />
+            Guruh topshiriqlari
+          </h2>
+          {tasks.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center mx-auto mb-4 shadow-sm">
+                <FileText className="w-10 h-10 text-zinc-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-zinc-900 mb-2">
+                Hali topshiriq yo'q
+              </h3>
+              <p className="text-zinc-600">
+                Yuqoridagi tugma orqali topshiriq qo'shing
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {tasks.map((task) => (
+                <Card
+                  key={task.id}
+                  className="rounded-3xl shadow-sm border border-zinc-200/60 bg-white hover:shadow-md transition-all"
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <CardTitle className="text-lg font-bold text-zinc-900">
+                        {task.title}
+                      </CardTitle>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
+                          task.type === "homework"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-green-100 text-green-700"
+                        }`}
+                      >
+                        {task.type === "homework" ? "📝 Uyga vazifa" : "💼 Amaliyot"}
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="text-sm text-zinc-600">
+                      {task.type === "homework"
+                        ? `📅 Deadline: ${task.deadline ? new Date(task.deadline).toLocaleDateString('uz-UZ') : "-"}`
+                        : `📅 Amaliyot kuni: ${task.date ? new Date(task.date).toLocaleDateString('uz-UZ') : "-"}`}
+                    </div>
+                    {task.description && (
+                      <div className="text-sm text-zinc-700 p-3 bg-zinc-50 rounded-xl">
+                        {task.description}
+                      </div>
+                    )}
+                    {task.file_url && (
+                      <a
+                        href={
+                          supabase.storage
+                            .from("tasks")
+                            .getPublicUrl(task.file_url).data.publicUrl
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium text-sm"
+                      >
+                        📎 Faylni ko'rish
+                      </a>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Add Task Modal */}
       <AddTaskModal
         isOpen={isAddTaskOpen}
         onClose={() => setIsAddTaskOpen(false)}
