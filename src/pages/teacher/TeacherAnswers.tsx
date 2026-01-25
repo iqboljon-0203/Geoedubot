@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, FileText, Loader2 } from "lucide-react";
@@ -22,6 +23,7 @@ interface Answer {
 }
 
 export default function TeacherAnswers() {
+  const queryClient = useQueryClient();
   const { userId } = useAuthStore();
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -65,15 +67,9 @@ export default function TeacherAnswers() {
         description: t('grading.graded_successfully'),
       });
       
-      // Update local state or refetch (optimistic update needed ideally, but page reload or parent refetch handles it usually. 
-      // Since we use custom hook, we might need to invalidate query, but for now let's just close modal. 
-      // The hook might re-fetch if we had invalidation logic, but simpler approach is manual window reload or just let it consist eventually.
-      // Actually creating a robust update flow is better, but seeing the current hook usage, it likely auto-refetches on focus or we can force it.
-      // For now, let's just show toast.)
-      
+      // Invalidate the query to refetch the teacher's answers data, ensuring the UI is up-to-date.
       setIsGradeModalOpen(false);
-      // Optional: reload to see changes immediately if hook doesn't auto-update
-      window.location.reload(); 
+      await queryClient.invalidateQueries({ queryKey: ["teacher-answers-data", userId] }); 
     } catch (error: any) {
       toast({
         title: t('common.error'),

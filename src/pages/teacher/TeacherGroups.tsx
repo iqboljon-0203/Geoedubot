@@ -125,7 +125,20 @@ const TeacherGroups = () => {
       setIsCreateModalOpen(false);
       
       // Refresh list
-      window.location.reload();
+      const newGroup: Group = {
+        id: data.id,
+        title: data.name,
+        description: data.description || "",
+        location: data.address ? {
+          lat: data.lat,
+          lng: data.lng,
+          address: data.address
+        } : null,
+        members: 0,
+        createdAt: data.created_at,
+      };
+
+      setGroups([newGroup, ...groups]);
     } catch (error: any) {
       toast({
         title: t('common.error'),
@@ -207,9 +220,23 @@ const TeacherGroups = () => {
                   </Button>
                 </div>
                 
-                <h3 className="text-xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors">
+                <h3 className="text-xl font-bold text-foreground mb-1 group-hover:text-primary transition-colors">
                   {group.title}
                 </h3>
+                
+                {/* Group Code Display */}
+                <div 
+                  className="inline-flex items-center gap-2 px-2 py-1 bg-muted rounded-md mb-4 cursor-pointer hover:bg-muted/80 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    copyGroupId(group.id);
+                  }}
+                  title={t('groups.join_code')}
+                >
+                  <code className="text-xs font-mono text-muted-foreground">{group.id}</code>
+                  <Copy className="w-3 h-3 text-muted-foreground" />
+                </div>
+
                 <p className="text-sm text-muted-foreground mb-6 line-clamp-2">
                   {group.description}
                 </p>

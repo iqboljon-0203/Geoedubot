@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AddTaskModal } from "@/components/modals/AddTaskModal";
 import { MapPin, Calendar, FileText } from "lucide-react";
 
 export default function GroupDetails() {
@@ -12,7 +11,6 @@ export default function GroupDetails() {
   const [group, setGroup] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -54,7 +52,7 @@ export default function GroupDetails() {
               ← Orqaga
             </Button>
             <Button
-              onClick={() => setIsAddTaskOpen(true)}
+              onClick={() => navigate(`/teacher-dashboard/groups/${groupId}/create-task`)}
               className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 font-semibold"
             >
               Guruhga topshiriq qo'shish
@@ -180,22 +178,6 @@ export default function GroupDetails() {
           )}
         </div>
       </div>
-
-      {/* Add Task Modal */}
-      <AddTaskModal
-        isOpen={isAddTaskOpen}
-        onClose={() => setIsAddTaskOpen(false)}
-        onSubmit={async () => {
-          // Task qo'shilgandan so'ng ro'yxatni yangilash
-          const { data: tasksData } = await supabase
-            .from("tasks")
-            .select("*")
-            .eq("group_id", groupId)
-            .order("created_at", { ascending: false });
-          setTasks(tasksData || []);
-        }}
-        group={{ id: group.id, title: group.name }}
-      />
     </div>
   );
 }

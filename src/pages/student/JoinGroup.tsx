@@ -80,9 +80,9 @@ export const JoinGroup = () => {
   const isFilled = code.trim().length > 5;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      {/* Header */}
-      <div className="border-b border-border sticky top-0 z-10 bg-card/80 backdrop-blur-md">
+    <div className="p-0">
+      {/* Premium Header */}
+      <header className="border-b border-border sticky top-0 z-10 bg-card/80 backdrop-blur-md">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center gap-4">
             <Button
@@ -97,7 +97,7 @@ export const JoinGroup = () => {
             <h1 className="text-xl font-bold">{t('groups.join')}</h1>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Content */}
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">

@@ -88,7 +88,7 @@ export default function StudentGroups() {
                   {t('dashboard.my_groups.no_groups_desc', "Siz hali hech qanday guruhga a'zo emassiz. O'qituvchingizdan guruh kodini so'rang.")}
                 </p>
                 <Button 
-                  onClick={() => navigate('/student-dashboard/join')}
+                  onClick={() => navigate('/join-group')}
                   className="w-full h-14 rounded-2xl bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-bold shadow-lg shadow-primary/20"
                 >
                   <Plus className="w-5 h-5 mr-2" />
