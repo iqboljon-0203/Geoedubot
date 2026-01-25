@@ -13,6 +13,19 @@ export function useTelegram(): UseTelegramResult {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    const useTestUser = () => {
+      setUser({
+        id: 123456789,
+        first_name: 'Test',
+        last_name: 'Teacher',
+        username: 'testteacher',
+        language_code: 'uz',
+        is_premium: true,
+        photo_url: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'
+      });
+      setIsReady(true);
+    };
+
     // Telegram WebApp SDK mavjudligini tekshirish
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
@@ -33,7 +46,6 @@ export function useTelegram(): UseTelegramResult {
         // WebApp bor, lekin user yo'q (Browserda script yuklangan holat)
         // Agar DEV mode bo'lsa, baribir test user ishlatamiz
         if (import.meta.env.DEV) {
-          console.warn('⚠️ Telegram WebApp User topilmadi. Development test user ishlatilmoqda.');
           useTestUser();
         } else {
           setIsReady(true);
@@ -43,21 +55,11 @@ export function useTelegram(): UseTelegramResult {
       // SDK umuman yo'q
       if (import.meta.env.DEV) {
         useTestUser();
+      } else {
+        setIsReady(true);
       }
     }
   }, []);
-
-  const useTestUser = () => {
-    // Teacher ID ga qaytarish
-    setUser({
-      id: 123456789,
-      first_name: 'Test',
-      last_name: 'Teacher',
-      username: 'testteacher',
-      language_code: 'uz',
-    });
-    setIsReady(true);
-  };
 
   return { user, webApp, isReady };
 }

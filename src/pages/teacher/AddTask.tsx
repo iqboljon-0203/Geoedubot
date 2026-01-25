@@ -2,8 +2,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function AddTask() {
+  const { t } = useTranslation();
   const { userId } = useAuthStore();
   const navigate = useNavigate();
   const [groups, setGroups] = useState<any[]>([]);
@@ -48,7 +53,7 @@ export default function AddTask() {
       .upload(`${userId}/${Date.now()}_${file.name}`, file);
     setFileUploading(false);
     if (error) {
-      alert("Fayl yuklashda xatolik: " + error.message);
+      toast.error(t('tasks.create.error') + ": " + error.message);
       return;
     }
     setForm((prev) => ({ ...prev, file: data.path }));
@@ -57,64 +62,86 @@ export default function AddTask() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.groupId || !form.type) {
-      alert("Barcha maydonlarni to‘ldiring");
+      toast.error(t('common.fill_all_fields'));
       return;
     }
-    const payload = {
+    const payload: {
+      title: string;
+      description: string;
+      type: "homework" | "internship";
+      group_id: string;
+      file_url: string | null;
+      created_by: string;
+      deadline: string | null;
+      date: string | null;
+    } = {
       title: form.title,
       description: form.description,
-      type: form.type,
+      type: form.type as "homework" | "internship",
       group_id: form.groupId,
       file_url: form.file,
-      created_by: userId,
-      deadline: form.type === "homework" ? form.deadline : null,
-      date: form.type === "internship" ? form.date : null,
+      created_by: userId || "",
+      deadline: form.type === "homework" ? (form.deadline || null) : null,
+      date: form.type === "internship" ? (form.date || null) : null,
     };
     const { error } = await supabase.from("tasks").insert([payload]);
     if (error) {
-      alert("Topshiriq qo‘shishda xatolik: " + error.message);
+      toast.error(t('tasks.create.error') + ": " + error.message);
     } else {
-      alert("Topshiriq muvaffaqiyatli qo‘shildi!");
+      toast.success(t('tasks.create.success'));
       navigate("/teacher-dashboard/tasks");
     }
   };
 
   return (
-    <div className="max-w-lg mx-auto py-10">
-      <div className="bg-white dark:bg-muted/60 rounded-2xl shadow-lg p-8">
-        <h1 className="text-2xl font-bold mb-6 text-center">
-          Yangi topshiriq qo‘shish
-        </h1>
-        <form onSubmit={handleSubmit} className="space-y-5">
+    <div className="max-w-xl mx-auto py-10 px-4">
+      <div className="bg-card rounded-3xl shadow-xl p-8 border border-border">
+        <div className="flex items-center gap-4 mb-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="rounded-full"
+          >
+            <ArrowLeft className="w-5 h-5 text-foreground" />
+          </Button>
+          <h1 className="text-2xl font-bold text-foreground">
+            {t('tasks.create.title')}
+          </h1>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block mb-1 font-medium">Nomi</label>
+            <label className="block mb-2 font-semibold text-foreground">{t('tasks.create.task_title')}</label>
             <input
               type="text"
               name="title"
               value={form.title}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition"
+              placeholder={t('tasks.create.title_placeholder')}
+              className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground transition shadow-sm"
             />
           </div>
           <div>
-            <label className="block mb-1 font-medium">Tavsifi</label>
+            <label className="block mb-2 font-semibold text-foreground">{t('tasks.create.description')}</label>
             <textarea
               name="description"
               value={form.description}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition resize-none"
-              rows={3}
+              placeholder={t('tasks.create.description_placeholder')}
+              className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground transition resize-none shadow-sm"
+              rows={4}
             />
           </div>
           <div>
-            <label className="block mb-1 font-medium">Guruh</label>
+            <label className="block mb-2 font-semibold text-foreground">{t('nav.groups')}</label>
             <select
               name="groupId"
               value={form.groupId}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition"
+              className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground transition shadow-sm"
             >
-              <option value="">Guruhni tanlang</option>
+              <option value="">{t('groups.select_group')}</option>
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
@@ -123,63 +150,87 @@ export default function AddTask() {
             </select>
           </div>
           <div>
-            <label className="block mb-1 font-medium">Turi</label>
-            <select
-              name="type"
-              value={form.type}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition"
-            >
-              <option value="homework">Uyga vazifa</option>
-              <option value="internship">Amaliyot</option>
-            </select>
+            <label className="block mb-2 font-semibold text-foreground">{t('tasks.create.type')}</label>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setForm(prev => ({ ...prev, type: 'homework' }))}
+                className={`py-3 rounded-xl border-2 transition-all font-semibold ${form.type === 'homework' ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background text-muted-foreground'}`}
+              >
+                {t('tasks.create.homework')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm(prev => ({ ...prev, type: 'internship' }))}
+                className={`py-3 rounded-xl border-2 transition-all font-semibold ${form.type === 'internship' ? 'border-green-600 bg-green-500/10 text-green-600' : 'border-border bg-background text-muted-foreground'}`}
+              >
+                {t('tasks.create.internship')}
+              </button>
+            </div>
           </div>
+          
           {form.type === "homework" ? (
             <div>
-              <label className="block mb-1 font-medium">Deadline</label>
+              <label className="block mb-2 font-semibold text-foreground">{t('tasks.create.deadline')}</label>
               <input
                 type="date"
                 name="deadline"
                 value={form.deadline}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition"
+                className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground transition shadow-sm"
               />
             </div>
           ) : (
             <div>
-              <label className="block mb-1 font-medium">Amaliyot sanasi</label>
+              <label className="block mb-2 font-semibold text-foreground">{t('tasks.internship_day')}</label>
               <input
                 type="date"
                 name="date"
                 value={form.date}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-background text-foreground transition"
+                className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground transition shadow-sm"
               />
             </div>
           )}
+          
           <div>
-            <label className="block mb-1 font-medium">Fayl</label>
-            <input
-              type="file"
-              onChange={handleFileChange}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
-            {fileUploading && (
-              <span className="text-blue-500 ml-2">Yuklanmoqda...</span>
-            )}
+            <label className="block mb-2 font-semibold text-foreground">{t('tasks.create.attachment')}</label>
+            <div className="relative">
+              <input
+                type="file"
+                onChange={handleFileChange}
+                className="block w-full text-sm text-muted-foreground file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 border border-border rounded-xl bg-background cursor-pointer"
+              />
+              {fileUploading && (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                </div>
+              )}
+            </div>
             {form.file && (
-              <span className="text-xs text-muted-foreground ml-2">
+              <p className="text-xs text-muted-foreground mt-2 truncate max-w-full">
                 {form.file}
-              </span>
+              </p>
             )}
           </div>
-          <button
+          
+          <Button
             type="submit"
-            className="w-full px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-semibold transition"
+            className="w-full h-14 rounded-2xl bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-bold text-lg shadow-lg border-0"
             disabled={fileUploading}
           >
-            Saqlash
-          </button>
+            {fileUploading ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                {t('common.loading')}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Save className="w-5 h-5" />
+                {t('common.save')}
+              </div>
+            )}
+          </Button>
         </form>
       </div>
     </div>

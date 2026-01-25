@@ -7,6 +7,7 @@ import { TelegramAuthProvider } from "./contexts/TelegramAuthContext";
 import { useAuthStore } from "./store/authStore";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { GroupModalProvider } from "@/providers/GroupModalProvider";
+import { Loader2 } from "lucide-react";
 
 // Layouts
 import DashboardLayout from "./components/layouts/DashboardLayout";
@@ -53,11 +54,10 @@ const ProtectedRoute = ({
   allowedRoles?: string[];
 }) => {
   const { isAuthenticated, role, isLoading } = useAuthStore();
-
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader2 className="w-12 h-12 animate-spin text-primary" />
       </div>
     );
   }
@@ -137,10 +137,12 @@ const App = () => (
                   path="/join-group"
                   element={
                     <ProtectedRoute allowedRoles={["student"]}>
-                      <JoinGroup />
+                      <DashboardLayout />
                     </ProtectedRoute>
                   }
-                />
+                >
+                  <Route index element={<JoinGroup />} />
+                </Route>
               
                 <Route
                   path="/student-dashboard"

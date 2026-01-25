@@ -25,7 +25,6 @@ export function GroupModalProvider({ children }: { children: ReactNode }) {
 
   const handleSubmit = (data: any) => {
     // Guruh yaratish logikasi
-    console.log("Guruh yaratish:", data);
     handleClose();
   };
 

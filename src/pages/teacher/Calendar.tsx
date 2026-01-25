@@ -4,13 +4,11 @@ import "react-calendar/dist/Calendar.css";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
+import { Calendar as CalendarIcon, Clock, Users, BookOpen, Briefcase, PartyPopper, Loader2 } from "lucide-react";
 
 export interface GroupType {
   id: string;
@@ -72,73 +70,95 @@ export default function TeacherCalendar() {
     );
   });
 
-  return (
-    <div className="max-w-xl mx-auto">
-      <Card>
-        <CardHeader>
-          <CardTitle>Kalendar</CardTitle>
-          <CardDescription>
-            Kalendar orqali topshiriqlarni ko'ring va boshqaring
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Calendar
-            onClickDay={setSelectedDate}
-            value={selectedDate}
-            locale="uz-UZ"
-          />
-        </CardContent>
-      </Card>
+  const getGroupName = (id: string) => groups.find((g) => g.id === id)?.name || "Guruh topilmadi";
 
+  return (
+    <div className="max-w-4xl mx-auto space-y-6 px-4 md:px-6 pb-24">
+      {/* Calendar Section */}
+      <div className="bg-card rounded-3xl shadow-sm border border-border p-6">
+        <div className="flex items-center gap-4 mb-6">
+           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+             <CalendarIcon className="w-6 h-6 text-primary" />
+           </div>
+           <div>
+             <h2 className="text-xl font-bold">Kalendar</h2>
+             <p className="text-sm text-muted-foreground">Topshiriqlar jadvali va muddatlar</p>
+           </div>
+        </div>
+        
+        <div className="calendar-wrapper flex justify-center">
+             <Calendar 
+                onClickDay={setSelectedDate}
+                value={selectedDate}
+                locale="uz-UZ"
+                className="w-full border-none" 
+             />
+        </div>
+      </div>
+
+      {/* Selected Date Tasks */}
       {selectedDate && (
-        <div className="mt-6">
-          <h2 className="text-lg font-semibold mb-2">
-            {selectedDate.toLocaleDateString()} uchun topshiriqlar:
-          </h2>
-          {loading ? (
-            <div>Yuklanmoqda...</div>
-          ) : filteredTasks.length === 0 ? (
-            <div className="text-muted-foreground">
-              Bu kunda topshiriq yo'q.
+        <div className="space-y-4">
+            <div className="flex items-center justify-between px-2">
+               <h3 className="font-bold text-lg flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-primary" />
+                  {selectedDate.toLocaleDateString("uz-UZ", { month: 'long', day: 'numeric', year: 'numeric' })}
+               </h3>
+               <Badge variant="outline" className="px-3 py-1 rounded-lg">
+                  {filteredTasks.length} ta topshiriq
+               </Badge>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredTasks.map((task) => (
-                <Card
-                  key={task.id}
-                  className="hover:shadow-md transition-shadow border border-primary/20"
-                >
-                  <CardContent className="flex flex-col gap-2 py-4">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-base">
-                        {task.title}
-                      </span>
-                      <Badge
-                        variant={
-                          task.type === "homework" ? "secondary" : "outline"
-                        }
-                      >
-                        {task.type === "homework" ? "Uyga vazifa" : "Amaliyot"}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>
-                        {groups.find((g) => g.id === task.group_id)?.name ||
-                          "-"}
-                      </span>
-                      {(task.deadline || task.date) && (
-                        <span className="ml-2 px-2 py-0.5 rounded bg-muted text-xs">
-                          {task.deadline
-                            ? `Deadline: ${new Date(task.deadline).toLocaleDateString()}`
-                            : `Amaliyot kuni: ${new Date(task.date!).toLocaleDateString()}`}
-                        </span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+
+            {loading ? (
+               <div className="flex justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+               </div>
+            ) : filteredTasks.length === 0 ? (
+               <div className="flex flex-col items-center justify-center py-12 text-center bg-muted/30 rounded-3xl border border-dashed border-border/50">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-3">
+                     <PartyPopper className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h4 className="font-semibold text-foreground">Topshiriqlar yo'q</h4>
+                  <p className="text-sm text-muted-foreground">Bu kunda rejalashtirilgan topshiriqlar mavjud emas.</p>
+               </div>
+            ) : (
+               <div className="grid gap-3">
+                  {filteredTasks.map(task => (
+                     <Card key={task.id} className="hover:shadow-md transition-all border-border/60 hover:border-primary/30 group">
+                        <CardContent className="p-4 flex items-start gap-4">
+                            {/* Task Icon/Type */}
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${task.type === 'homework' ? 'bg-blue-500/10 text-blue-600' : 'bg-green-500/10 text-green-600'}`}>
+                                {task.type === 'homework' ? <BookOpen className="w-6 h-6" /> : <Briefcase className="w-6 h-6" />}
+                            </div>
+                            
+                            <div className="flex-1 min-w-0">
+                               <div className="flex flex-wrap items-start justify-between gap-2">
+                                  <h4 className="font-bold truncate text-lg text-foreground">{task.title}</h4>
+                                  <Badge variant={task.type === 'homework' ? 'default' : 'secondary'} className="rounded-lg">
+                                     {task.type === 'homework' ? 'Uyga vazifa' : 'Amaliyot'}
+                                  </Badge>
+                               </div>
+                               
+                               <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
+                                  <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-lg">
+                                     <Users className="w-4 h-4" />
+                                     <span>{getGroupName(task.group_id)}</span>
+                                  </div>
+                                  {(task.deadline || task.date) && (
+                                     <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-lg">
+                                        <Clock className="w-4 h-4" />
+                                        <span>
+                                          {task.type === 'homework' ? 'Deadline' : 'Sana'}: {new Date(task.deadline || task.date!).toLocaleDateString()}
+                                        </span>
+                                     </div>
+                                  )}
+                               </div>
+                            </div>
+                        </CardContent>
+                     </Card>
+                  ))}
+               </div>
+            )}
         </div>
       )}
     </div>

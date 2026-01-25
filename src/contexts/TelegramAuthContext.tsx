@@ -35,7 +35,6 @@ export const TelegramAuthProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const { error } = await supabase.auth.getSession();
         if (error) {
-          console.warn("[TelegramAuth] Clearing old session due to error:", error.message);
           await supabase.auth.signOut();
           localStorage.removeItem('sb-aubsdrqiorcbtcwurnsm-auth-token');
         }
@@ -45,15 +44,20 @@ export const TelegramAuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (!isReady) return;
       
+      // Agar foydalanuvchi "Chiqish" tugmasini bosgan bo'lsa, avtomatik kirmaymiz
+      if (localStorage.getItem('manual_logout')) {
+        setLoading(false);
+        return;
+      }
+      
       setLoading(true);
       try {
         if (!telegramUser) {
-          console.warn("[TelegramAuth] Telegram user topilmadi");
           setLoading(false);
           return;
         }
 
-        console.log("[TelegramAuth] Telegram user:", telegramUser.id);
+
 
         // Telegram user ID asosida profile ni tekshirish
         const { data: profile, error: profileError } = await supabase
@@ -69,7 +73,6 @@ export const TelegramAuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         if (profile) {
           // Profile mavjud - avtomatik login
-          console.log("[TelegramAuth] Profile topildi:", profile.id);
           
           setUser({
             id: profile.id,
@@ -87,7 +90,6 @@ export const TelegramAuthProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         } else {
           // Profile yo'q - rol tanlash sahifasiga yo'naltirish
-          console.log("[TelegramAuth] Profile topilmadi, rol tanlashga yo'naltirish");
           if (!window.location.pathname.includes("/role-selection")) {
             navigate("/role-selection");
           }

@@ -1,19 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import { Icon, LatLng } from 'leaflet';
+import { MapContainer, TileLayer, useMapEvents } from 'react-leaflet';
+import { LatLng } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapPin } from 'lucide-react';
-
-// Fix for default marker icon
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-const DefaultIcon = new Icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
+import { MapPin, Search, Crosshair, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 interface LocationMapPickerProps {
   initialLat?: number;
@@ -38,39 +30,128 @@ export const LocationMapPicker = ({
   initialLng = 69.2401,
   onLocationChange,
 }: LocationMapPickerProps) => {
+  const { t, i18n } = useTranslation();
   const [position, setPosition] = useState<LatLng>(new LatLng(initialLat, initialLng));
   const [address, setAddress] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const mapRef = useRef<any>(null);
 
-  // Reverse geocoding to get address from coordinates
+  // Reverse geocoding using Photon (Komoot) - provides better street-level accuracy and is CORS friendly
   const getAddressFromCoords = async (lat: number, lng: number) => {
     setIsLoading(true);
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
-      );
-      const data = await response.json();
-      const formattedAddress = data.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-      setAddress(formattedAddress);
-      onLocationChange(lat, lng, formattedAddress);
-    } catch (error) {
-      console.error('Geocoding error:', error);
-      const fallbackAddress = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-      setAddress(fallbackAddress);
-      onLocationChange(lat, lng, fallbackAddress);
-    } finally {
-      setIsLoading(false);
+    
+    // Clear existing timer if any (debounce)
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
     }
+
+    // Set new timer
+    timerRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `https://photon.komoot.io/reverse?lon=${lng}&lat=${lat}`
+        );
+        const data = await response.json();
+        
+        if (data.features && data.features.length > 0) {
+          const props = data.features[0].properties;
+          
+          // Construct explicit address parts
+          const addressParts = [
+            props.name,
+            props.housenumber,
+            props.street,
+            props.district,
+            props.city,
+            props.country
+          ].filter(Boolean); // Remove null/undefined/empty strings
+
+          // Remove duplicates and join
+          const uniqueParts = [...new Set(addressParts)];
+          const formattedAddress = uniqueParts.length > 0 
+            ? uniqueParts.join(', ') 
+            : `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+
+          setAddress(formattedAddress);
+          onLocationChange(lat, lng, formattedAddress);
+        } else {
+          // Fallback if no features found
+          const fallbackAddress = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+          setAddress(fallbackAddress);
+          onLocationChange(lat, lng, fallbackAddress);
+        }
+      } catch (error) {
+        console.error('Geocoding error:', error);
+        const fallbackAddress = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        setAddress(fallbackAddress);
+        onLocationChange(lat, lng, fallbackAddress);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 800); // 800ms delay to wait for user to stop moving map
   };
 
   useEffect(() => {
     getAddressFromCoords(initialLat, initialLng);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleMapMove = (lat: number, lng: number) => {
     setPosition(new LatLng(lat, lng));
     getAddressFromCoords(lat, lng);
+  };
+
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    setIsSearching(true);
+    try {
+      // Use Photon for search (CORS friendly, based on OSM)
+      const response = await fetch(
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(searchQuery)}&limit=1`
+      );
+      const data = await response.json();
+      
+      if (data.features && data.features.length > 0) {
+        const [lng, lat] = data.features[0].geometry.coordinates; // Photon returns [lng, lat]
+        
+        if (mapRef.current) {
+          mapRef.current.flyTo([lat, lng], 16);
+          // Manually trigger update since flyTo might not trigger moveend immediately in all cases
+          // or we want immediate feedback
+          setPosition(new LatLng(lat, lng));
+          getAddressFromCoords(lat, lng);
+        }
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleLocateMe = () => {
+    if ('geolocation' in navigator) {
+      setIsSearching(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          if (mapRef.current) {
+            mapRef.current.flyTo([latitude, longitude], 16);
+          }
+          setIsSearching(false);
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+          setIsSearching(false);
+          // Toast or helper text could be added here
+        }
+      );
+    }
   };
 
   return (
@@ -88,6 +169,38 @@ export const LocationMapPicker = ({
         />
         <MapEventHandler onLocationChange={handleMapMove} />
       </MapContainer>
+
+      {/* Search Bar */}
+      <div className="absolute top-4 left-4 right-4 z-[1000]">
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            <Input 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('groups.search_location')}
+              className="pl-9 bg-white/90 backdrop-blur-md border-zinc-200 shadow-lg h-10 rounded-xl text-zinc-900 placeholder:text-zinc-500"
+            />
+          </div>
+          <Button 
+            type="submit" 
+            size="icon"
+            disabled={isSearching}
+            className="h-10 w-10 bg-white/90 backdrop-blur-md border border-zinc-200 shadow-lg hover:bg-zinc-50 text-zinc-700 rounded-xl shrink-0"
+          >
+            {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            onClick={handleLocateMe}
+            className="h-10 w-10 bg-white/90 backdrop-blur-md border border-zinc-200 shadow-lg hover:bg-zinc-50 text-blue-600 rounded-xl shrink-0"
+            title={t('groups.my_location')}
+          >
+             <Crosshair className="w-4 h-4" />
+          </Button>
+        </form>
+      </div>
 
       {/* Center Pin Indicator */}
       <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-full z-[1000] pointer-events-none">
@@ -108,16 +221,16 @@ export const LocationMapPicker = ({
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">
-                CURRENT SELECTION
+                {t('groups.current_selection')}
               </p>
               {isLoading ? (
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                  <span className="text-sm text-zinc-600">Loading address...</span>
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  <span className="text-sm text-zinc-600">{t('groups.loading_address')}</span>
                 </div>
               ) : (
                 <p className="text-sm font-semibold text-zinc-900 line-clamp-2">
-                  {address || '14 Amir Temur Avenue'}
+                  {address || '...'}
                 </p>
               )}
               <p className="text-xs text-zinc-500 mt-1">

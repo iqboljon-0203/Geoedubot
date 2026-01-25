@@ -19,6 +19,7 @@ interface AuthState {
     profileUrl?: string | null;
   }) => void;
   setLoading: (isLoading: boolean) => void;
+  setRole: (role: UserRole) => void;
   logout: () => void;
 }
 
@@ -45,6 +46,22 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   setLoading: (isLoading) => set({ isLoading }),
+
+  setRole: (role) => {
+    set((state) => {
+      const updatedUser = {
+        id: state.userId || '',
+        email: state.email || '',
+        name: state.name || '',
+        role: role,
+        profileUrl: state.profileUrl,
+      };
+      
+      localStorage.setItem("hamkor_user", JSON.stringify(updatedUser));
+      
+      return { role };
+    });
+  },
 
   logout: () => {
     localStorage.removeItem("hamkor_user");

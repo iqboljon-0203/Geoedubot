@@ -51,14 +51,17 @@ const Settings = () => {
     setIsDarkMode(!isDarkMode);
     if (!isDarkMode) {
       document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
     }
   };
 
   const handleLanguageSelect = (lang: Language) => {
     setSelectedLanguage(lang);
     i18n.changeLanguage(lang);
+    localStorage.setItem('language', lang);
     setShowLanguageModal(false);
   };
 
@@ -68,23 +71,28 @@ const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-slate-50 to-zinc-100 dark:from-black dark:to-zinc-900 pb-20 text-zinc-900 dark:text-white">
+    <div 
+      className="min-h-screen bg-gradient-to-br from-background via-background to-muted pb-20 text-foreground"
+      role="main"
+      aria-labelledby="settings-title"
+    >
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-200/60 dark:border-zinc-800">
+      <header className="sticky top-0 z-10 bg-card border-b border-border shadow-sm">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center gap-3">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => navigate(-1)}
-              className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"
+              className="p-2 hover:bg-accent rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+              aria-label={t('common.back')}
             >
-              <ArrowLeft className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+              <ArrowLeft className="w-5 h-5 text-muted-foreground" />
             </motion.button>
-            <h1 className="text-xl font-bold">{t('settings.title')}</h1>
+            <h1 id="settings-title" className="text-xl font-bold">{t('settings.title')}</h1>
           </div>
         </div>
-      </div>
+      </header>
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Profile Card */}
@@ -93,8 +101,12 @@ const Settings = () => {
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
           whileHover={{ scale: 1.01 }}
-          className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-zinc-200/60 dark:border-zinc-800 cursor-pointer"
+          className="bg-card rounded-3xl p-6 shadow-sm border border-border cursor-pointer focus-within:ring-2 focus-within:ring-primary"
           onClick={() => navigate('/profile')}
+          role="button"
+          tabIndex={0}
+          aria-label={t('accessibility.open_profile')}
+          onKeyDown={(e) => e.key === 'Enter' && navigate('/profile')}
         >
           <div className="flex items-center gap-4">
             {profileUrl ? (
@@ -104,32 +116,35 @@ const Settings = () => {
                   alt={name || 'User'}
                   className="w-16 h-16 rounded-full object-cover shadow-md"
                 />
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-900">
-                  <Check className="w-3 h-3 text-white" />
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-card">
+                  <Check className="w-3 h-3 text-white" aria-hidden="true" />
                 </div>
               </div>
             ) : (
               <div className="relative">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-700 to-amber-800 flex items-center justify-center text-white text-2xl font-bold shadow-md">
+                <div 
+                  className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white text-2xl font-bold shadow-md"
+                  aria-hidden="true"
+                >
                   {name?.charAt(0).toUpperCase() || 'G'}
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-900">
-                  <Check className="w-3 h-3 text-white" />
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-card">
+                  <Check className="w-3 h-3 text-white" aria-hidden="true" />
                 </div>
               </div>
             )}
             <div className="flex-1 min-w-0">
               <h3 className="text-lg font-bold truncate">
-                {name || 'Student'}
+                {name || t('auth.student')}
               </h3>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">Premium Member</p>
+              <p className="text-sm text-muted-foreground">{t('common.active')}</p>
             </div>
-            <ChevronRight className="w-5 h-5 text-zinc-400" />
+            <ChevronRight className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
           </div>
         </motion.div>
 
         {/* Settings Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" role="list">
           {/* Language Card */}
           <motion.div
             initial={{ y: 20, opacity: 0 }}
@@ -138,23 +153,28 @@ const Settings = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => setShowLanguageModal(true)}
-            className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-zinc-200/60 dark:border-zinc-800 cursor-pointer"
+            className="bg-card rounded-3xl p-6 shadow-sm border border-border cursor-pointer focus-within:ring-2 focus-within:ring-primary"
+            role="button"
+            tabIndex={0}
+            aria-label={t('settings.language')}
+            onKeyDown={(e) => e.key === 'Enter' && setShowLanguageModal(true)}
           >
-            <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-4">
-              <Globe className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+              <Globe className="w-6 h-6 text-primary" aria-hidden="true" />
             </div>
-            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               {t('settings.language')}
             </p>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap" role="group" aria-label={t('settings.language')}>
               {languages.map((lang) => (
                 <span
                   key={lang.code}
                   className={`px-2 py-1 text-xs font-semibold rounded-lg transition-colors ${
                     selectedLanguage === lang.code
-                      ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
-                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                      ? 'bg-foreground text-background'
+                      : 'bg-muted text-muted-foreground'
                   }`}
+                  aria-current={selectedLanguage === lang.code ? 'true' : undefined}
                 >
                   {lang.code.toUpperCase()}
                 </span>
@@ -168,31 +188,33 @@ const Settings = () => {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
             whileHover={{ scale: 1.02 }}
-            className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-zinc-200/60 dark:border-zinc-800"
+            className="bg-card rounded-3xl p-6 shadow-sm border border-border"
           >
             <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center">
                 {isDarkMode ? (
-                  <Moon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                  <Moon className="w-6 h-6 text-purple-600" aria-hidden="true" />
                 ) : (
-                  <Sun className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                  <Sun className="w-6 h-6 text-purple-600" aria-hidden="true" />
                 )}
               </div>
-              <motion.button
-                whileTap={{ scale: 0.9 }}
+              <button
                 onClick={handleThemeToggle}
-                className={`w-12 h-7 rounded-full transition-colors relative ${
-                  isDarkMode ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-700'
+                className={`w-12 h-7 rounded-full transition-colors relative focus:outline-none focus:ring-2 focus:ring-primary ${
+                  isDarkMode ? 'bg-primary' : 'bg-muted'
                 }`}
+                role="switch"
+                aria-checked={isDarkMode}
+                aria-label={isDarkMode ? t('settings.dark_mode') : t('settings.light_mode')}
               >
                 <motion.div
                   animate={{ x: isDarkMode ? 20 : 2 }}
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                  className="absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md"
+                  className="absolute top-0.5 w-6 h-6 bg-card rounded-full shadow-md"
                 />
-              </motion.button>
+              </button>
             </div>
-            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
               {t('settings.theme')}
             </p>
             <h3 className="text-lg font-bold">
@@ -207,15 +229,18 @@ const Settings = () => {
             transition={{ delay: 0.3, duration: 0.5 }}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-zinc-200/60 dark:border-zinc-800 cursor-pointer"
+            className="bg-card rounded-3xl p-6 shadow-sm border border-border cursor-pointer focus-within:ring-2 focus-within:ring-primary"
+            role="button"
+            tabIndex={0}
+            aria-label={t('accessibility.notifications')}
           >
-            <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mb-4">
-              <Bell className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+            <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center mb-4">
+              <Bell className="w-6 h-6 text-orange-600" aria-hidden="true" />
             </div>
-            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
-              ALERTS
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+              {t('accessibility.notifications')}
             </p>
-            <h3 className="text-lg font-bold">Notifications</h3>
+            <h3 className="text-lg font-bold">{t('accessibility.notifications')}</h3>
           </motion.div>
 
           {/* Privacy Card */}
@@ -225,15 +250,17 @@ const Settings = () => {
             transition={{ delay: 0.4, duration: 0.5 }}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-zinc-200/60 dark:border-zinc-800 cursor-pointer"
+            className="bg-card rounded-3xl p-6 shadow-sm border border-border cursor-pointer focus-within:ring-2 focus-within:ring-primary"
+            role="button"
+            tabIndex={0}
           >
-            <div className="w-12 h-12 rounded-2xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
-              <Shield className="w-6 h-6 text-green-600 dark:text-green-400" />
+            <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center mb-4">
+              <Shield className="w-6 h-6 text-green-600" aria-hidden="true" />
             </div>
-            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
-              SECURITY
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+              {t('profile.role')}
             </p>
-            <h3 className="text-lg font-bold">Privacy</h3>
+            <h3 className="text-lg font-bold">{t('profile.danger_zone')}</h3>
           </motion.div>
         </div>
 
@@ -244,17 +271,19 @@ const Settings = () => {
           transition={{ delay: 0.5, duration: 0.5 }}
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.99 }}
-          className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-zinc-200/60 dark:border-zinc-800 cursor-pointer"
+          className="bg-card rounded-3xl p-6 shadow-sm border border-border cursor-pointer focus-within:ring-2 focus-within:ring-primary"
+          role="button"
+          tabIndex={0}
         >
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-              <HelpCircle className="w-6 h-6 text-zinc-600 dark:text-zinc-400" />
+            <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center">
+              <HelpCircle className="w-6 h-6 text-muted-foreground" aria-hidden="true" />
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-bold">Help Center</h3>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">FAQs and Support</p>
+              <h3 className="text-lg font-bold">{t('common.search')}</h3>
+              <p className="text-sm text-muted-foreground">FAQs</p>
             </div>
-            <ChevronRight className="w-5 h-5 text-zinc-400" />
+            <ChevronRight className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
           </div>
         </motion.div>
 
@@ -266,11 +295,11 @@ const Settings = () => {
         >
           <Button
             onClick={handleLogout}
-            className="w-full h-14 rounded-3xl bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 hover:text-red-700 dark:text-red-400 border border-red-200/60 dark:border-red-900/30 font-semibold"
+            className="w-full h-14 rounded-3xl bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/20 font-semibold"
+            aria-label={t('common.logout')}
           >
-            <LogOut className="w-5 h-5 mr-2" />
-            {t('common.error').includes('error') ? 'Log Out' : t('common.error') === 'Xatolik yuz berdi' ? 'Chiqish' : 'Log Out'} {/* Temporary fallback logic, better to use t('auth.logout') but I didn't add it. Using hardcoded for now or add to json */}
-            Log Out
+            <LogOut className="w-5 h-5 mr-2" aria-hidden="true" />
+            {t('common.logout')}
           </Button>
         </motion.div>
       </div>
@@ -283,36 +312,41 @@ const Settings = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowLanguageModal(false)}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="language-modal-title"
           >
             <motion.div
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 100, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-zinc-900 rounded-3xl p-6 w-full max-w-md shadow-2xl border border-zinc-200 dark:border-zinc-800"
+              className="bg-card rounded-3xl p-6 mx-4 mb-24 sm:mb-4 w-full sm:max-w-md shadow-2xl border border-border"
             >
-              <h3 className="text-xl font-bold mb-4">
+              <h3 id="language-modal-title" className="text-xl font-bold mb-4">
                 {t('settings.language')}
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-3" role="radiogroup" aria-label={t('settings.language')}>
                 {languages.map((lang) => (
                   <motion.button
                     key={lang.code}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => handleLanguageSelect(lang.code)}
-                    className={`w-full flex items-center justify-between p-4 rounded-2xl transition-colors ${
+                    className={`w-full flex items-center justify-between p-4 rounded-2xl transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
                       selectedLanguage === lang.code
-                        ? 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-600 dark:border-blue-500'
-                        : 'bg-zinc-50 dark:bg-zinc-800 border-2 border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-700'
+                        ? 'bg-primary/10 border-2 border-primary'
+                        : 'bg-muted border-2 border-transparent hover:bg-accent'
                     }`}
+                    role="radio"
+                    aria-checked={selectedLanguage === lang.code}
                   >
-                    <span className="font-semibold">
+                    <span className="font-semibold text-foreground">
                       {lang.name}
                     </span>
                     {selectedLanguage === lang.code && (
-                      <Check className="w-5 h-5 text-blue-600 dark:text-blue-500" />
+                      <Check className="w-5 h-5 text-primary" aria-hidden="true" />
                     )}
                   </motion.button>
                 ))}

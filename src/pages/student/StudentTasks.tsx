@@ -1,18 +1,21 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Clock, Calendar, FileText, MapPin } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import EmptyState from '@/components/ui/EmptyState';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useStudentTasks } from '@/hooks/useStudentTasks';
-import { formatDistanceToNow, isPast } from 'date-fns';
+import { formatDistanceToNow, isPast, isValid, isToday } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 
 export default function StudentTasks() {
   const navigate = useNavigate();
   const { userId } = useAuthStore();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'todo' | 'done'>('todo');
   
   const { data: tasks = [], isLoading } = useStudentTasks(userId);
@@ -23,82 +26,101 @@ export default function StudentTasks() {
     return activeTab === 'todo' ? !hasSubmitted : hasSubmitted;
   });
 
-  const getTaskStatus = (task: any) => {
-    if (isPast(new Date(task.deadline)) && (!task.answers || task.answers.length === 0)) return 'overdue';
-    if (task.answers && task.answers.length > 0) return 'completed';
-    return 'pending';
-  };
+  const getTaskDateInfo = (task: any) => {
+    // Internship uses 'date', Homework uses 'deadline'
+    const dateStr = task.type === 'internship' ? task.date : task.deadline;
+    
+    if (!dateStr) return { text: "Muddatsiz", isOverdue: false, isValid: false };
+    
+    const date = new Date(dateStr);
+    const valid = isValid(date) && date.getFullYear() > 2000; // Filter out 1970 epoch bugs
 
-  const formatDeadline = (deadline: string) => {
-    const date = new Date(deadline);
-    if (isPast(date)) {
-      return `Overdue by ${formatDistanceToNow(date)}`;
+    if (!valid) return { text: "Sana belgilanmagan", isOverdue: false, isValid: false };
+
+    if (isToday(date)) {
+        return { 
+            text: "Bugun", 
+            isOverdue: false, 
+            isValid: true,
+            dateObj: date
+        };
     }
-    return formatDistanceToNow(date, { addSuffix: true });
+
+    if (isPast(date)) {
+        return { 
+            text: task.type === 'internship' ? "Yakunlangan" : "Muddati o'tgan", 
+            isOverdue: true, 
+            isValid: true,
+            dateObj: date
+        };
+    }
+
+    return { 
+        text: formatDistanceToNow(date, { addSuffix: true }), 
+        isOverdue: false, 
+        isValid: true,
+        dateObj: date
+    };
   };
-  
-  const getIcon = (type: string) => (type === 'internship' ? '💼' : '📝');
-  const getColor = (type: string) => (type === 'internship' ? 'from-purple-600 to-blue-600' : 'from-green-600 to-emerald-600');
 
   return (
-    <div className="min-h-screen bg-black text-white pb-24">
+    <div 
+      className="min-h-screen bg-background text-foreground pb-24"
+      role="main"
+      aria-labelledby="tasks-title"
+    >
       {/* Header */}
-      <div className="px-4 sm:px-6 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">My Tasks</h1>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full text-white hover:bg-zinc-900"
-            >
-              <Filter className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
+      <header className="px-4 sm:px-6 py-6 sticky top-0 bg-background z-20 border-b border-border">
+        <h1 id="tasks-title" className="text-2xl font-bold mb-6">{t('tasks.my_tasks')}</h1>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
+        {/* Custom Tabs */}
+        <div className="bg-muted p-1 rounded-xl flex gap-1" role="tablist">
           <button
             onClick={() => setActiveTab('todo')}
+            role="tab"
+            aria-selected={activeTab === 'todo'}
             className={cn(
-              'flex-1 py-3 rounded-2xl font-semibold transition-all',
-              activeTab === 'todo'
-                ? 'bg-white text-black'
-                : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+              "flex-1 py-2 rounded-lg text-sm font-semibold transition-all",
+              activeTab === 'todo' 
+                ? "bg-background text-foreground shadow-sm" 
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
-            To Do
+            {t('tasks.todo', 'Bajarish kerak')}
           </button>
           <button
             onClick={() => setActiveTab('done')}
+            role="tab"
+            aria-selected={activeTab === 'done'}
             className={cn(
-              'flex-1 py-3 rounded-2xl font-semibold transition-all',
-              activeTab === 'done'
-                ? 'bg-white text-black'
-                : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+              "flex-1 py-2 rounded-lg text-sm font-semibold transition-all",
+              activeTab === 'done' 
+                ? "bg-background text-foreground shadow-sm" 
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
-            Done
+            {t('tasks.done', 'Bajarildi')}
           </button>
         </div>
-      </div>
+      </header>
 
       {/* Task List */}
-      <div className="px-4 sm:px-6">
+      <div className="px-4 sm:px-6 py-6">
         <AnimatePresence mode="wait">
           {isLoading ? (
-             <div className="text-center py-12">
-               <div className="inline-block w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+             <div className="space-y-4">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-32 bg-muted/20 animate-pulse rounded-2xl" />
+                ))}
              </div>
           ) : filteredTasks.length === 0 ? (
             <EmptyState
-              icon={activeTab === 'todo' ? Filter : CheckCircle2}
-              title={activeTab === 'todo' ? 'No pending tasks' : 'No completed tasks'}
+              icon={activeTab === 'todo' ? Clock : CheckCircle2}
+              title={activeTab === 'todo' ? t('tasks.pending') : t('tasks.done')}
               description={
                 activeTab === 'todo'
-                  ? "You're all caught up! Check back later for new assignments."
-                  : "You haven't completed any tasks yet. Keep going!"
+                  ? "Sizda yangi vazifalar yo'q. Dam olish vaqti!"
+                  : "Hali hech qanday vazifani bajarmadingiz."
               }
             />
           ) : (
@@ -107,10 +129,11 @@ export default function StudentTasks() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="space-y-3"
+              className="space-y-4"
+              role="list"
             >
               {filteredTasks.map((task, index) => {
-                const status = getTaskStatus(task);
+                const dateInfo = getTaskDateInfo(task);
                 const hasSubmitted = task.answers && task.answers.length > 0;
                 const score = hasSubmitted ? task.answers?.[0].score : null;
 
@@ -120,85 +143,66 @@ export default function StudentTasks() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
+                    role="listitem"
                   >
                     <Card
-                      onClick={() =>
-                        navigate(`/student-dashboard/tasks/${task.id}`)
-                      }
-                      className="bg-zinc-900 border-zinc-800 p-4 cursor-pointer hover:bg-zinc-800 transition-colors"
+                      onClick={() => navigate(`/student-dashboard/tasks/${task.id}`)}
+                      className="group bg-card border-border hover:border-primary/50 cursor-pointer overflow-hidden rounded-2xl transition-all hover:shadow-md"
                     >
-                      <div className="flex items-start gap-4">
-                        {/* Icon */}
-                        <div
-                          className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${getColor(task.type)} flex items-center justify-center flex-shrink-0`}
-                        >
-                          <span className="text-2xl">{getIcon(task.type)}</span>
+                      <div className="p-5">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-center gap-2">
+                             <div className={cn("p-2 rounded-lg", 
+                                task.type === 'homework' ? "bg-blue-500/10 text-blue-600" : "bg-orange-500/10 text-orange-600"
+                             )}>
+                                {task.type === 'homework' ? <FileText className="w-5 h-5" /> : <MapPin className="w-5 h-5" />}
+                             </div>
+                             <div>
+                                <h3 className="font-bold text-lg leading-none mb-1">{task.groups?.name || "Guruh"}</h3>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-normal">
+                                    {task.type === 'homework' ? "Uyga vazifa" : "Amaliyot"}
+                                  </Badge>
+                                </div>
+                             </div>
+                          </div>
+                          
+                          {dateInfo.isOverdue && activeTab === 'todo' && (
+                             <Badge variant="destructive" className="animate-in fade-in">
+                                {dateInfo.text.toUpperCase()}
+                             </Badge>
+                          )}
                         </div>
 
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <h3 className="font-semibold text-white truncate pr-2">
-                              {task.title}
-                            </h3>
-                            {status === 'overdue' && (
-                              <span className="px-2 py-1 rounded-full text-xs font-bold bg-red-600/20 text-red-500 whitespace-nowrap">
-                                OVERDUE
-                              </span>
-                            )}
-                            {score !== null && score !== undefined && (
-                              <span className="px-2 py-1 rounded-full text-xs font-bold bg-green-600/20 text-green-500 whitespace-nowrap">
-                                Score: {score}/10
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-zinc-400 mb-3 truncate">
-                            {task.type.charAt(0).toUpperCase() + task.type.slice(1)} • {task.groups?.name}
-                          </p>
+                        <h4 className="text-base font-semibold mb-2 group-hover:text-primary transition-colors">
+                           {task.title}
+                        </h4>
+                        
+                        <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
+                           {task.description}
+                        </p>
 
-                          {/* Footer */}
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-sm">
-                              {hasSubmitted ? (
-                                <span className="text-zinc-500">
-                                  Submitted {task.answers && task.answers[0] ? new Date(task.answers[0].created_at).toLocaleDateString() : ''}
-                                </span>
+                        <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                           <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
+                              <Calendar className="w-3.5 h-3.5" />
+                              <span className={dateInfo.isOverdue ? "text-red-500" : ""}>
+                                 {dateInfo.isValid && dateInfo.dateObj 
+                                    ? dateInfo.dateObj.toLocaleDateString() 
+                                    : dateInfo.text}
+                              </span>
+                           </div>
+
+                           <div>
+                              {activeTab === 'done' ? (
+                                <Badge variant={score ? "default" : "secondary"}>
+                                   {score ? `${score}/10 ball` : "Baholanmoqda"}
+                                </Badge>
                               ) : (
-                                <>
-                                  <svg
-                                    className="w-4 h-4 text-zinc-500"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                    />
-                                  </svg>
-                                  <span
-                                    className={cn(
-                                      status === 'overdue'
-                                        ? 'text-red-500'
-                                        : 'text-zinc-500'
-                                    )}
-                                  >
-                                    {formatDeadline(task.deadline)}
-                                  </span>
-                                </>
+                                <Button size="sm" variant={dateInfo.isOverdue ? "secondary" : "default"} className="h-8 rounded-lg text-xs px-4">
+                                   {dateInfo.isOverdue ? "Muddati o'tgan" : "Bajarish"}
+                                </Button>
                               )}
-                            </div>
-                            {!hasSubmitted && (
-                              <Button
-                                size="sm"
-                                className="bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl h-8 px-4"
-                              >
-                                Submit
-                              </Button>
-                            )}
-                          </div>
+                           </div>
                         </div>
                       </div>
                     </Card>

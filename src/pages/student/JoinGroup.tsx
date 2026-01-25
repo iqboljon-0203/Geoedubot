@@ -1,39 +1,46 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Info } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Info, Users, Clipboard, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { DigitInput } from '@/components/ui/DigitInput';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 export const JoinGroup = () => {
   const navigate = useNavigate();
   const { userId } = useAuthStore();
+  const { t } = useTranslation();
   const [code, setCode] = useState('');
   const [isJoining, setIsJoining] = useState(false);
 
-  const handleCodeChange = (newCode: string) => {
-    setCode(newCode);
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) setCode(text.trim());
+    } catch (err) {
+      console.error('Failed to read clipboard', err);
+    }
   };
 
   const handleJoinGroup = async () => {
-    if (code.length !== 6 || !userId) return;
+    if (!code.trim() || !userId) return;
 
     setIsJoining(true);
     try {
-      // Find group by code
+      // Find group by code (ID)
       const { data: group, error: groupError } = await supabase
         .from('groups')
         .select('id, name')
-        .eq('id', code)
+        .eq('id', code.trim())
         .single();
 
       if (groupError || !group) {
-        toast.error('Invalid group code. Please check and try again.');
+        toast.error(t('groups.not_found'));
         return;
       }
 
@@ -46,7 +53,7 @@ export const JoinGroup = () => {
         .single();
 
       if (existingMember) {
-        toast.error('You are already a member of this group.');
+        toast.info(t('groups.already_member'));
         return;
       }
 
@@ -60,33 +67,34 @@ export const JoinGroup = () => {
 
       if (joinError) throw joinError;
 
-      toast.success(`Successfully joined ${group.name}!`);
+      toast.success(t('groups.join_success', { name: group.name }));
       navigate('/student-dashboard/groups');
     } catch (error) {
       console.error('Error joining group:', error);
-      toast.error('Failed to join group. Please try again.');
+      toast.error(t('groups.join_error'));
     } finally {
       setIsJoining(false);
     }
   };
 
-  const isFilled = code.length === 6;
+  const isFilled = code.trim().length > 5;
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <div className="border-b border-zinc-800 sticky top-0 z-10 bg-black">
+      <div className="border-b border-border sticky top-0 z-10 bg-card/80 backdrop-blur-md">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate(-1)}
-              className="rounded-full text-white hover:bg-zinc-900"
+              className="rounded-full hover:bg-accent"
+              aria-label={t('common.back')}
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <h1 className="text-xl font-bold">Join Group</h1>
+            <h1 className="text-xl font-bold">{t('groups.join')}</h1>
           </div>
         </div>
       </div>
@@ -100,33 +108,38 @@ export const JoinGroup = () => {
         >
           {/* Icon */}
           <div className="flex justify-center">
-            <div className="w-24 h-24 rounded-3xl bg-zinc-900 flex items-center justify-center">
-              <svg
-                className="w-12 h-12 text-blue-500"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
-              </svg>
+            <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-primary/20 to-purple-600/20 flex items-center justify-center shadow-inner group">
+              <Users className="w-12 h-12 text-primary group-hover:scale-110 transition-transform" />
             </div>
           </div>
 
           {/* Title & Description */}
-          <div className="text-center space-y-2">
-            <h2 className="text-2xl font-bold">Enter Group ID</h2>
-            <p className="text-zinc-400 max-w-md mx-auto">
-              Please type the 6-digit identification code provided by your mentor
-              to join the learning session.
+          <div className="text-center space-y-3">
+            <h2 className="text-3xl font-bold tracking-tight">{t('groups.enter_id')}</h2>
+            <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
+              {t('groups.enter_id_desc')}
             </p>
           </div>
 
-          {/* Digit Input */}
-          <div className="flex justify-center">
-            <DigitInput
-              length={6}
-              onChange={handleCodeChange}
-              onComplete={handleJoinGroup}
-            />
+          {/* Input */}
+          <div className="space-y-4">
+            <div className="relative group">
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="e.g. 861eeb32-186c..."
+                className="h-16 text-lg pr-14 font-mono bg-card rounded-2xl border-border focus:ring-2 focus:ring-primary/20 transition-all"
+              />
+              <Button
+                size="icon"
+                variant="ghost"
+                className="absolute right-2 top-2 h-12 w-12 text-muted-foreground hover:text-primary rounded-xl"
+                onClick={handlePaste}
+                title={t('common.paste', { defaultValue: "Nusxalash" })}
+              >
+                <Clipboard className="w-5 h-5" />
+              </Button>
+            </div>
           </div>
 
           {/* Join Button */}
@@ -134,21 +147,21 @@ export const JoinGroup = () => {
             onClick={handleJoinGroup}
             disabled={!isFilled || isJoining}
             className={cn(
-              'w-full h-14 rounded-2xl font-semibold text-lg transition-all',
+              'w-full h-16 rounded-2xl font-bold text-lg shadow-xl transition-all active:scale-[0.98]',
               isFilled
-                ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                ? 'bg-gradient-to-r from-primary to-purple-600 text-white hover:from-primary/90 hover:to-purple-600/90 shadow-primary/20'
+                : 'bg-muted text-muted-foreground cursor-not-allowed'
             )}
           >
             {isJoining ? (
               <div className="flex items-center gap-2">
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Joining...
+                <Loader2 className="w-6 h-6 animate-spin" />
+                {t('common.processing', { defaultValue: "Jarayonda..." })}
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                Join Group
-                <ArrowRight className="w-5 h-5" />
+              <div className="flex items-center gap-2 text-white">
+                {t('common.next')}
+                <ArrowRight className="w-6 h-6" />
               </div>
             )}
           </Button>
@@ -156,9 +169,9 @@ export const JoinGroup = () => {
           {/* Help Text */}
           <button
             onClick={() => navigate('/student-dashboard/groups')}
-            className="w-full text-center text-zinc-400 hover:text-white transition-colors"
+            className="w-full text-center text-muted-foreground hover:text-primary font-medium transition-colors text-sm"
           >
-            I don't have a code
+            {t('groups.dont_have_code')}
           </button>
         </motion.div>
 
@@ -167,14 +180,15 @@ export const JoinGroup = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mt-8"
+          className="mt-12"
         >
-          <Card className="p-4 bg-zinc-900 border-zinc-800">
-            <div className="flex gap-3">
-              <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-zinc-400">
-                ID codes are unique for each group. Ask your instructor if you're
-                having trouble connecting.
+          <Card className="p-6 bg-muted/30 border-dashed border-2 border-border/50 rounded-3xl">
+            <div className="flex gap-4">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Info className="w-5 h-5 text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {t('groups.id_help')}
               </p>
             </div>
           </Card>

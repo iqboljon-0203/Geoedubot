@@ -16,11 +16,7 @@ export function useStudentDashboardData(userId: string) {
       
       if (!groupIds.length) {
         return {
-          stats: { 
-            completedTasks: 0, 
-            pendingTasks: 0, 
-            averageScore: 0 
-          },
+          stats: { completedTasks: 0, pendingTasks: 0, averageScore: 0 },
           recentTasks: [],
           groups: [],
         };
@@ -40,33 +36,76 @@ export function useStudentDashboardData(userId: string) {
         .eq("user_id", userId);
       if (answersError) throw answersError;
 
-      // 4. Guruh nomlari
+      // 4. Guruh ma'lumotlari
       const { data: groups, error: groupsError } = await supabase
         .from("groups")
         .select("id, name")
         .in("id", groupIds);
       if (groupsError) throw groupsError;
 
-      const groupMap = Object.fromEntries(
-        (groups || []).map((g) => [g.id, g.name])
-      );
+      // 5. Guruh a'zolari sonini olish (barcha a'zolar)
+      const { data: allMembers } = await supabase
+        .from("group_members")
+        .select("group_id")
+        .in("group_id", groupIds);
+      
+      // Guruh a'zolarini hisoblash
+      const memberCounts: Record<string, number> = {};
+      if (allMembers) {
+        allMembers.forEach(m => {
+          memberCounts[m.group_id] = (memberCounts[m.group_id] || 0) + 1;
+        });
+      }
 
-      // 5. Statistika
-      const answeredTaskIds = new Set((answers || []).map((a) => a.task_id));
-      const completedTasks = (answers || []).filter((a) => a.score !== null).length;
-      const pendingTasks = (tasks || []).filter(
-        (t) => !answeredTaskIds.has(t.id)
-      ).length;
+      const groupMap = Object.fromEntries((groups || []).map((g) => [g.id, g.name]));
 
-      // O'rtacha bahoni hisoblash
+      // 6. Statistika
       const scoredAnswers = (answers || []).filter((a) => a.score !== null);
+      
+      // Bajarilganlar = Baholanganlar (yoki shunchaki answer borlar: answers.length)
+      // "Bajarildi" odatda topshirilganini bildiradi, baho shart emas.
+      const completedCount = (answers || []).length; 
+      const totalTasksCount = (tasks || []).length;
+      const pendingCount = totalTasksCount - completedCount;
+
       const averageScore = scoredAnswers.length > 0
         ? scoredAnswers.reduce((sum, a) => sum + (a.score || 0), 0) / scoredAnswers.length
         : 0;
 
-      // 6. Barcha topshiriqlarni qaytarish (hasSubmitted va score bilan)
-      const now = new Date();
-      const recentTasks = (tasks || [])
+      // 7. Guruhlar ro'yxatini boyitish
+      const enrichedGroups = (groups || []).map(group => {
+         // Shu guruhning tasklari
+         const groupTasks = (tasks || []).filter(t => t.group_id === group.id);
+         
+         // Kelajakdagi eng yaqin task (Next Task)
+         const now = new Date();
+         const futureTasks = groupTasks.filter(t => {
+            const dateStr = t.type === 'homework' ? t.deadline : t.date;
+            if (!dateStr) return false;
+            const date = new Date(dateStr);
+            return date > now;
+         }).sort((a, b) => {
+            const dateA = new Date(a.type === 'homework' ? a.deadline! : a.date!);
+            const dateB = new Date(b.type === 'homework' ? b.deadline! : b.date!);
+            return dateA.getTime() - dateB.getTime();
+         });
+
+         const nextTaskTitle = futureTasks.length > 0 
+            ? futureTasks[0].title 
+            : (groupTasks.length > 0 ? "Vazifalar yo'q" : "Yangi");
+
+         return {
+            id: group.id,
+            title: group.name,
+            schedule: "Online", // Hozircha statik
+            status: "Active",   // Hozircha statik
+            nextTask: nextTaskTitle,
+            memberCount: memberCounts[group.id] || 0
+         };
+      });
+
+      // Recent Tasks
+       const recentTasks = (tasks || [])
         .map((t) => {
           const answer = (answers || []).find((a) => a.task_id === t.id);
           return {
@@ -82,20 +121,21 @@ export function useStudentDashboardData(userId: string) {
           };
         })
         .sort((a, b) => {
-          // Muddati yaqin bo'lganlarni birinchi qo'yish
-          const aDate = new Date(a.type === "homework" ? a.deadline : a.date);
-          const bDate = new Date(b.type === "homework" ? b.deadline : b.date);
+          const dateAStr = a.type === "homework" ? a.deadline : a.date;
+          const dateBStr = b.type === "homework" ? b.deadline : b.date;
+          const aDate = dateAStr ? new Date(dateAStr) : new Date(8640000000000000); // Far future if null
+          const bDate = dateBStr ? new Date(dateBStr) : new Date(8640000000000000);
           return aDate.getTime() - bDate.getTime();
         });
 
       return {
         stats: { 
-          completedTasks, 
-          pendingTasks, 
-          averageScore: Math.round(averageScore * 10) / 10 // 1 xona
+          completedTasks: completedCount, 
+          pendingTasks: pendingCount, 
+          averageScore: Math.round(averageScore * 10) / 10
         },
         recentTasks,
-        groups: groups || [],
+        groups: enrichedGroups,
       };
     },
     staleTime: 1000 * 60 * 2,

@@ -9,9 +9,20 @@
     "delete": "O'chirish",
     "edit": "Tahrirlash",
     "back": "Orqaga",
+    "next": "Keyingi",
     "submit": "Yuborish",
     "search": "Qidirish",
-    "view_all": "Barchasini ko'rish"
+    "view_all": "Barchasini ko'rish",
+    "logout": "Chiqish",
+    "status": "Holat",
+    "active": "Faol",
+    "no_schedule": "Jadval yo'q",
+    "find_partners": "O'quv sheriklar va mentorlarni toping",
+    "ahead_of_students": "Siz talabalarning 70% dan oldinsiz",
+    "optional": "ixtiyoriy",
+    "fill_all_fields": "Barcha maydonlarni to'ldiring",
+    "created_at": "Yaratilgan",
+    "points": "ball"
   },
   "auth": {
     "select_role": "Davom ettirish uchun rolingizni tanlang",
@@ -19,12 +30,24 @@
     "student": "Talaba",
     "teacher_desc": "Guruhlarni boshqaring, vazifalar yarating va baholang.",
     "student_desc": "Guruhlarga qo'shiling, vazifalarni bajaring va baholaringizni kuzatib boring.",
-    "continue": "Davom etish"
+    "continue": "Davom etish",
+    "step_of": "{{current}}-QADAM / {{total}}"
+  },
+  "nav": {
+    "dashboard": "Bosh sahifa",
+    "tasks": "Topshiriqlar",
+    "groups": "Guruhlar",
+    "answers": "Javoblar",
+    "grades": "Baholar",
+    "calendar": "Kalendar",
+    "profile": "Profil",
+    "settings": "Sozlamalar"
   },
   "dashboard": {
     "welcome_back": "Xush kelibsiz, {{name}}! 👋",
     "teacher_subtitle": "Bugun guruhlaringizda nimalar bo'layotganini ko'ring.",
     "student_subtitle": "O'qish jarayoningizni kuzatib boring.",
+    "teacher_dashboard": "O'qituvchi paneli",
     "stats": {
       "active_groups": "Faol Guruhlar",
       "pending_reviews": "Tekshirilmagan",
@@ -45,13 +68,20 @@
     },
     "recent_activity": {
       "title": "So'nggi Faoliyat",
-      "no_activity": "Hozircha faoliyat yo'q"
+      "no_activity": "Hozircha faoliyat yo'q",
+      "created_group": "Yangi Guruh Yaratildi",
+      "assigned_task": "Yangi Vazifa Berildi",
+      "new_submission": "Yangi Javob",
+      "student_joined": "Yangi Talaba Qo'shildi",
+      "submitted_on": "{{student}} {{task}} ga javob yubordi",
+      "joined_group": "{{student}} {{group}} ga qo'shildi"
     },
     "my_groups": {
-        "title": "Mening Guruhlarim",
-        "join_new": "Yangi guruhga qo'shilish"
+      "title": "Mening Guruhlarim",
+      "join_new": "Yangi guruhga qo'shilish"
     },
-    "weekly_progress": "Haftalik Natija"
+    "weekly_progress": "Haftalik Natija",
+    "keep_going": "Davom eting!"
   },
   "tasks": {
     "title": "Vazifalar",
@@ -63,19 +93,123 @@
     "pending": "Kutilmoqda",
     "score": "Baho",
     "deadline": "Muddat",
+    "deadline_today": "Bugun",
+    "deadline_ended": "Yakunlandi",
+    "internship_day": "Amaliyot kuni",
+    "time_left": "Qolgan vaqt",
+    "unlimited": "Muddatsiz",
+    "no_date": "----",
     "instructions": "Yo'riqnoma",
     "resources": "Resurslar",
     "submit_answer": "Javobni Yuborish",
     "update_submission": "Javobni Yangilash",
     "points_possible": "Maksimal Ball",
-    "remaining": "qoldi"
+    "remaining": "qoldi",
+    "next": "Keyingi",
+    "internship": "Amaliyot",
+    "attached_files": "Ilova qilingan fayllar",
+    "file_name": "Topshiriq fayli",
+    "click_to_view": "Ko'rish uchun bosing",
+    "view_result": "Natijani ko'rish",
+    "view_answer": "Javobni ko'rish",
+    "instructor": "O'qituvchi",
+    "state": "Holati",
+    "date": "Sana",
+    "details": "Topshiriq ma'lumotlari",
+    "edit_title": "Topshiriqni tahrirlash",
+    "no_description": "Tavsif yo'q",
+    "create": {
+      "title": "Vazifa Yaratish",
+      "subtitle": "Talabalaringiz uchun yangi topshiriq qo'shing",
+      "type": "Vazifa turi",
+      "homework": "Uy vazifasi",
+      "internship": "Amaliyot",
+      "basic_info": "Asosiy ma'lumotlar",
+      "task_title": "Vazifa nomi",
+      "title_placeholder": "Masalan: 5-bob mashqlari",
+      "description": "Tavsif",
+      "description_placeholder": "Vazifa uchun batafsil ko'rsatmalarni kiriting...",
+      "max_score": "Maksimal ball (1-10)",
+      "deadline": "Muddat",
+      "pick_date": "Sanani tanlang",
+      "attachment": "Ilova (ixtiyoriy)",
+      "creating": "Yaratilmoqda...",
+      "create_btn": "Vazifa yaratish",
+      "success": "Vazifa muvaffaqiyatli yaratildi!",
+      "error": "Vazifani yaratishda xatolik",
+      "validation": {
+        "title_min": "Sarlavha kamida 3 ta belgidan iborat bo'lishi kerak",
+        "desc_min": "Tavsif kamida 10 ta belgidan iborat bo'lishi kerak",
+        "deadline_required": "Muddatni tanlang"
+      }
+    }
+  },
+  "grading": {
+    "title": "Baholash",
+    "grade_submission": "Ishni Baholash",
+    "submitted": "Yuborilgan",
+    "submitted_file": "Yuborilgan Fayl",
+    "no_file": "Fayl yuklanmagan",
+    "preview_not_available": "Ko'rib bo'lmaydi",
+    "open_file": "Faylni Ochish",
+    "download_file": "Faylni Yuklab Olish",
+    "score": "Baho",
+    "feedback": "Izoh (Ixtiyoriy)",
+    "feedback_placeholder": "Talabaga foydali fikr bildiring...",
+    "submit_grade": "Bahoni Yuborish",
+    "submitting": "Yuborilmoqda...",
+    "grade_success": "Baho muvaffaqiyatli yuborildi!",
+    "grade_error": "Bahoni yuborishda xatolik",
+    "load_error": "Ishni yuklashda xatolik",
+    "not_found": "Ish topilmadi",
+    "perfect": "Ajoyib! 🎉",
+    "excellent": "Zo'r! 🌟",
+    "good": "Yaxshi! 👍",
+    "keep_trying": "Davom eting! 💪",
+    "needs_improvement": "Yaxshilash kerak 📚"
   },
   "groups": {
-    "create_new": "Guruh Yaratish",
+    "create_new": "Yangi Guruh Yaratish",
     "group_name": "Guruh nomi",
+    "group_name_placeholder": "Masalan: Ingliz tili A1",
     "description": "Tavsif",
-    "members": "A'zolar",
-    "join_code": "Guruh kodi"
+    "description_placeholder": "Guruh haqida qisqacha ma'lumot...",
+    "members": "a'zo",
+    "join_code": "Guruh kodi nusxalandi",
+    "select_location": "Lokatsiyani Tanlang",
+    "location": "Lokatsiya",
+    "drag_map_hint": "Xaritada kerakli joyni belgilash uchun xaritani suring",
+    "confirm_location": "Lokatsiyani Tasdiqlash",
+    "current_selection": "Tanlangan joy",
+    "loading_address": "Manzil yuklanmoqda...",
+    "search_location": "Manzilni qidiring...",
+    "my_location": "Mening joylashuvim",
+    "select_group": "Guruhni tanlang",
+    "join": "Guruhga qo'shilish",
+    "enter_id": "Guruh ID sini kiriting",
+    "enter_id_desc": "Mentoringiz taqdim etgan guruh identifikatorini (ID) kiriting.",
+    "dont_have_code": "Kodim yo'q, ortga qaytish",
+    "id_help": "Har bir guruhning noyob ID raqami bo'ladi. Iltimos, ulanishda muammoga duch kelsangiz, o'qituvchingizga murojaat qiling.",
+    "not_found": "Guruh topilmadi. ID to'g'riligini tekshiring.",
+    "already_member": "Siz allaqachon ushbu guruh a'zosisiz.",
+    "join_success": "Guruhga muvaffaqiyatli qo'shildingiz!",
+    "join_error": "Guruhga qo'shilishda xatolik yuz berdi."
+  },
+  "profile": {
+    "title": "Profil",
+    "my_profile": "Mening Profilim",
+    "manage_info": "Shaxsiy ma'lumotlaringizni boshqaring",
+    "name": "Ism",
+    "enter_name": "Ismingizni kiriting",
+    "username": "Foydalanuvchi nomi",
+    "role": "Rol",
+    "saving": "Saqlanmoqda...",
+    "image_uploaded": "Rasm yuklandi",
+    "profile_updated": "Profil yangilandi",
+    "quick_info": "Tezkor ma'lumot",
+    "danger_zone": "Xavfli zona",
+    "logout_description": "Hisobdan chiqish uchun quyidagi tugmani bosing",
+    "logout_from_app": "Ilovadan chiqish uchun quyidagi tugmani bosing"
   },
   "settings": {
     "title": "Sozlamalar",
@@ -83,5 +217,59 @@
     "theme": "Mavzu",
     "dark_mode": "Tungi rejim",
     "light_mode": "Kunduzgi rejim"
+  },
+  "splash": {
+    "tagline": "Dunyoni kashf eting, dars ortidan dars",
+    "loading": "YUKLANMOQDA"
+  },
+  "accessibility": {
+    "notifications": "Bildirishnomalar",
+    "open_profile": "Profilni ochish",
+    "navigate_to": "{{page}} sahifasiga o'tish",
+    "loading_content": "Kontent yuklanmoqda",
+    "menu_button": "Menyu tugmasi"
+  },
+  "modals": {
+    "submit": {
+      "title": "Javob yuborish",
+      "geo_not_supported": "Geolokatsiya qurilmangizda qo'llab-quvvatlanmaydi.",
+      "gps_accuracy_low": "Qurilma lokatsiyasi noaniq (Xatolik: {{accuracy}}m). Kompyuter yoki Wi-Fi orqali aniq lokatsiyani topib bo'lmaydi. Iltimos, ushbu vazifani GPS mavjud telefondan, belgilangan joyga borib bajaring.",
+      "distance_error": "Siz belgilangan joydan uzoqdasiz ({{distance}}m). Maksimal masofa: 100m.",
+      "location_error_title": "Lokatsiya xatosi",
+      "verifying": "Lokatsiya aniqlanmoqda...",
+      "check_location": "Lokatsiyani tekshirish",
+      "retry_gps": "Qayta tekshirish (GPS)",
+      "map_hint": "Xaritada qizil doira - borish kerak bo'lgan joy, ko'k belgi - siz turgan joy.",
+      "wrong_date": "Noto'g'ri sana",
+      "wrong_date_desc": "Amaliyot topshirig'ini faqat belgilangan sanada ({{date}}) yuborish mumkin.",
+      "permission_denied": "Lokatsiyaga ruxsat berilmadi. Sozlamalarni tekshiring.",
+      "gps_not_found": "GPS signali topilmadi. Ochiq joyga chiqing.",
+      "timeout": "Vaqt tugadi. Qayta urinib ko'ring.",
+      "success": "Javob muvaffaqiyatli yuborildi!",
+      "existing_file": "Mavjud fayl",
+      "replace_file_hint": "Oldin yuklangan faylni o'zgartirish uchun yangisini yuklang",
+      "upload_title": "Rasm yoki Fayl yuklash",
+      "upload_desc": "PNG, JPG, PDF (max 10MB)",
+      "comment_label": "Izoh qoldirish",
+      "comment_placeholder": "Javobingizni shu yerga yozing...",
+      "success_location": "Siz belgilangan hududdasiz!",
+      "fail_location": "Siz belgilangan hududdan uzoqdasiz.",
+      "pre_location": "Yuborishdan oldin joylashuvingizni tasdiqlang (GPS kerak).",
+      "submitting": "Yuborilmoqda..."
+    }
+  },
+  "map": {
+    "current_location": "Sizning joylashuvingiz",
+    "target_location": "Guruh Lokatsiyasi (Target)"
+  },
+  "grades": {
+    "no_desc": "Tavsif yo'q",
+    "teacher_comment": "O'qituvchi izohi",
+    "your_desc": "Sizning tavsifingiz",
+    "download_answer": "Javobni yuklab olish",
+    "not_graded": "Baholanmagan",
+    "no_submissions_title": "Hali javob yuborilmagan",
+    "no_submissions_desc": "Topshiriqlarni bajarib javob yuboring",
+    "all_submissions": "Barcha javoblar"
   }
 }

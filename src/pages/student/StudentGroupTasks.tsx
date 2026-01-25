@@ -1,38 +1,22 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Users, MapPin, Calendar as CalendarIcon } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Users, MapPin, Calendar as CalendarIcon, ArrowLeft, Clock, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuthStore } from "@/store/authStore";
-import { toast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { motion } from "framer-motion";
 
 export default function StudentGroupTasks() {
   const { groupId } = useParams();
+  const navigate = useNavigate();
   const [group, setGroup] = useState<any>(null);
   const [teacher, setTeacher] = useState<any>(null);
   const [membersCount, setMembersCount] = useState<number>(0);
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
-  const [answerDesc, setAnswerDesc] = useState("");
-  const [answerFile, setAnswerFile] = useState<File | null>(null);
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(
-    null
-  );
-  const [locationError, setLocationError] = useState("");
-  const { userId } = useAuthStore();
-  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -74,320 +58,189 @@ export default function StudentGroupTasks() {
     if (groupId) fetchData();
   }, [groupId]);
 
-  const handleOpen = (taskId: string) => {
-    setOpenTaskId(taskId);
-    setAnswerDesc("");
-    setAnswerFile(null);
-    setLocation(null);
-    setLocationError("");
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setAnswerFile(e.target.files[0]);
-    }
-  };
-
-  const handleGetLocation = () => {
-    if (!navigator.geolocation) {
-      setLocationError("Brauzeringiz geolokatsiyani qo'llab-quvvatlamaydi");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setLocationError("");
-      },
-      () => {
-        setLocationError("Lokatsiyani aniqlab bo'lmadi");
-      }
-    );
-  };
-
-  const handleSubmit = async (task: any) => {
-    // Tavsif majburiy
-    if (!answerDesc.trim()) {
-      toast({
-        title: "Xatolik",
-        description: "Tavsif maydoni to'ldirilishi shart!",
-        variant: "destructive",
-      });
-      return;
-    }
-    // Fayl majburiy
-    if (!answerFile) {
-      toast({
-        title: "Xatolik",
-        description: "Fayl yuklash majburiy!",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (task.type === "internship") {
-      // Lokatsiya tekshiruvi
-      if (!location) {
-        setLocationError("Lokatsiyani aniqlang");
-        return;
-      }
-      const groupLoc = { lat: group.lat, lng: group.lng };
-
-      // Haversine formulasi orqali masofani hisoblash
-      const R = 6371e3; // Yer radiusi metrlarda
-      const φ1 = (groupLoc.lat * Math.PI) / 180;
-      const φ2 = (location.lat * Math.PI) / 180;
-      const Δφ = ((location.lat - groupLoc.lat) * Math.PI) / 180;
-      const Δλ = ((location.lng - groupLoc.lng) * Math.PI) / 180;
-
-      const a =
-        Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-        Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const distance = R * c; // metrlarda
-
-      if (distance > 2500) {
-        setLocationError(
-          `Siz kerakli joydan ${Math.round(distance)} metr uzoqlikdasiz!`
-        );
-        return;
-      }
-    }
-    let file_url = null;
-    if (answerFile) {
-      const ext = answerFile.name.split(".").pop();
-      const filePath = `${userId}/${task.id}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("answers")
-        .upload(filePath, answerFile, {
-          upsert: false,
-          contentType: answerFile.type || undefined,
-        });
-      if (uploadError) {
-        toast({
-          title: "Fayl yuklashda xatolik",
-          description: uploadError.message,
-          variant: "destructive",
-        });
-        return;
-      }
-      file_url = filePath;
-    }
-    // Javobni answers jadvaliga yozish
-    const { error: insertError } = await supabase.from("answers").insert([
-      {
-        task_id: task.id,
-        user_id: userId,
-        description: answerDesc,
-        file_url,
-        location_lat: location?.lat || null,
-        location_lng: location?.lng || null,
-      },
-    ]);
-    if (insertError) {
-      toast({
-        title: "Javob yuborishda xatolik",
-        description: insertError.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({ title: "Muvaffaqiyatli", description: "Javob yuborildi!" });
-      setOpenTaskId(null);
-    }
-  };
-
-  const isToday = (dateStr: string) => {
-    const today = new Date();
-    const date = new Date(dateStr);
+  if (loading) {
     return (
-      date.getFullYear() === today.getFullYear() &&
-      date.getMonth() === today.getMonth() &&
-      date.getDate() === today.getDate()
+      <div className="max-w-4xl mx-auto p-4 space-y-6">
+        <div className="flex items-center gap-4 mb-8">
+           <Skeleton className="h-10 w-10 rounded-full" />
+           <Skeleton className="h-8 w-32" />
+        </div>
+        <Skeleton className="h-64 w-full rounded-3xl" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+           <Skeleton className="h-32 rounded-2xl" />
+           <Skeleton className="h-32 rounded-2xl" />
+        </div>
+      </div>
     );
-  };
+  }
 
-  if (loading) return <div className="p-8">Yuklanmoqda...</div>;
-  if (!group) return <div className="p-8">Guruh topilmadi</div>;
+  if (!group) return <div className="p-8 text-center">Guruh topilmadi</div>;
 
   return (
-    <div className="max-w-3xl mx-auto py-8 space-y-8">
-      <Button variant="outline" onClick={() => navigate(-1)} className="mb-4">
-        ← Orqaga
-      </Button>
-      <Card className="rounded-2xl shadow-lg border border-border bg-gradient-to-br from-blue-50 to-white dark:from-muted dark:to-muted/60 p-0 overflow-hidden">
-        <div className="flex flex-col md:flex-row items-center gap-6 p-6">
-          <div className="flex-shrink-0 flex flex-col items-center gap-2">
-            <Avatar className="h-16 w-16">
-              {teacher?.avatar ? (
-                <img
-                  src={teacher.avatar}
-                  alt={teacher.full_name}
-                  className="object-cover w-full h-full rounded-full"
-                />
-              ) : (
-                <AvatarFallback>
-                  {teacher?.full_name
-                    ? teacher.full_name
-                        .split(" ")
-                        .map((n: string) => n[0])
-                        .join("")
-                    : "?"}
-                </AvatarFallback>
-              )}
-            </Avatar>
-            <div className="text-center mt-1">
-              <div className="font-semibold text-base">
-                {teacher?.full_name || "O'qituvchi"}
-              </div>
-              <div className="text-xs text-muted-foreground">O'qituvchi</div>
-            </div>
-          </div>
-          <div className="flex-1 w-full space-y-2">
-            <div className="flex items-center gap-2 text-lg font-bold">
-              {group.name}
-            </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <MapPin className="w-4 h-4 mr-1" />
-              <span>{group.address}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CalendarIcon className="w-4 h-4 mr-1" />
-              <span>Yaratilgan: {group.created_at?.split("T")[0]}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Users className="w-4 h-4 mr-1" />
-              <span>A'zolar soni: {membersCount}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>
-                Kenglik/Uzunlik: {group.lat}, {group.lng}
-              </span>
-            </div>
-          </div>
+    <div className="min-h-screen bg-background pb-24">
+      {/* Decorative Header Background */}
+      <div className="h-48 bg-gradient-to-r from-primary/10 via-purple-500/10 to-blue-500/10 relative">
+        <div className="max-w-5xl mx-auto px-4 pt-6">
+          <Button 
+            variant="secondary" 
+            size="sm" 
+            onClick={() => navigate(-1)} 
+            className="rounded-full shadow-sm bg-background/80 hover:bg-background backdrop-blur-sm"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Orqaga
+          </Button>
         </div>
-      </Card>
-      <div>
-        <h2 className="text-xl font-bold mb-4">Guruh topshiriqlari</h2>
-        {tasks.length === 0 ? (
-          <div>Hali topshiriq yo'q</div>
-        ) : (
-          <div className="space-y-6">
-            {tasks.map((task) => (
-              <div
-                key={task.id}
-                className="rounded-2xl shadow-md border border-border bg-white dark:bg-muted/60 hover:shadow-lg transition cursor-pointer p-6 group"
-                onClick={() => navigate("/student-dashboard/tasks")}
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="font-bold text-lg">{task.title}</span>
-                  <span
-                    className={`text-xs px-2 py-1 rounded font-semibold ${task.type === "homework" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}`}
-                  >
-                    {task.type === "homework" ? "Uyga vazifa" : "Amaliyot"}
-                  </span>
-                </div>
-                <div className="text-xs text-muted-foreground mb-1">
-                  {task.description}
-                </div>
-                {task.deadline && (
-                  <div className="text-sm">
-                    Deadline: {new Date(task.deadline).toLocaleDateString()}
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 -mt-24 relative space-y-8">
+        {/* Group Info Card */}
+        <motion.div
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+        >
+          <Card className="rounded-[2rem] shadow-xl border-border overflow-hidden bg-card">
+            <CardContent className="p-0">
+              <div className="flex flex-col items-center pt-8 pb-8 px-6 text-center">
+                {/* Teacher Avatar */}
+                <div className="relative mb-4">
+                  <div className="w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-primary to-purple-600 shadow-lg">
+                    <Avatar className="w-full h-full border-4 border-card">
+                      <AvatarImage src={teacher?.avatar} />
+                      <AvatarFallback className="bg-muted text-2xl font-bold">
+                        {teacher?.full_name?.charAt(0) || "T"}
+                      </AvatarFallback>
+                    </Avatar>
                   </div>
+                  <Badge variant="secondary" className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 shadow-sm border-white/20 whitespace-nowrap">
+                    O'qituvchi
+                  </Badge>
+                </div>
+
+                {/* Teacher Name & Group Role */}
+                <h3 className="text-lg font-bold text-foreground mb-1">
+                  {teacher?.full_name || "O'qituvchi"}
+                </h3>
+                <p className="text-muted-foreground text-sm mb-6">
+                   Guruh rahbari
+                </p>
+
+                <div className="w-full h-px bg-border mb-6 max-w-sm mx-auto" />
+
+                {/* Group Details */}
+                <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-800 mb-2">
+                  {group.name}
+                </h1>
+                
+                {group.description && (
+                  <p className="text-muted-foreground max-w-lg mx-auto mb-6">
+                    {group.description}
+                  </p>
                 )}
-                {task.date && (
-                  <div className="text-sm">
-                    Amaliyot kuni: {new Date(task.date).toLocaleDateString()}
-                  </div>
-                )}
-                {task.file_url && (
-                  <a
-                    href={
-                      supabase.storage.from("tasks").getPublicUrl(task.file_url)
-                        .data.publicUrl
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 underline text-xs"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Faylni ko'rish
-                  </a>
-                )}
-                <Dialog
-                  open={openTaskId === task.id}
-                  onOpenChange={(open) => {
-                    if (!open) setOpenTaskId(null);
-                  }}
-                >
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Javob yuborish</DialogTitle>
-                      <DialogDescription>
-                        {task.type === "homework"
-                          ? "Uyga vazifa uchun javob yuboring."
-                          : "Amaliyot topshirig'i uchun faqat amaliyot kuni va kerakli joyda bo'lsangiz javob yuborishingiz mumkin."}
-                      </DialogDescription>
-                    </DialogHeader>
-                    {task.type === "internship" && !isToday(task.date) ? (
-                      <div className="text-red-600 text-sm mb-2">
-                        Faqat amaliyot kuni javob yuborish mumkin!
-                      </div>
-                    ) : null}
-                    <Input
-                      placeholder="Tavsif..."
-                      value={answerDesc}
-                      onChange={(e) => setAnswerDesc(e.target.value)}
-                      className="mb-2"
-                      disabled={
-                        task.type === "internship" && !isToday(task.date)
-                      }
-                    />
-                    <Input
-                      type="file"
-                      onChange={handleFileChange}
-                      className="mb-2"
-                      disabled={
-                        task.type === "internship" && !isToday(task.date)
-                      }
-                    />
-                    {task.type === "internship" && (
-                      <div className="mb-2">
-                        <Button
-                          type="button"
-                          onClick={handleGetLocation}
-                          disabled={
-                            task.type === "internship" && !isToday(task.date)
-                          }
-                        >
-                          Lokatsiyani aniqlash
-                        </Button>
-                        {location && (
-                          <div className="text-xs mt-1 text-green-600">
-                            Lokatsiya: {location.lat.toFixed(4)},{" "}
-                            {location.lng.toFixed(4)}
-                          </div>
-                        )}
-                        {locationError && (
-                          <div className="text-xs mt-1 text-red-600">
-                            {locationError}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <DialogFooter>
-                      <Button
-                        onClick={() => handleSubmit(task)}
-                        disabled={
-                          task.type === "internship" && !isToday(task.date)
-                        }
-                      >
-                        Yuborish
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-2xl mx-auto">
+                    <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-muted/50 hover:bg-muted/80 transition-colors">
+                        <Users className="w-5 h-5 text-blue-500 mb-1" />
+                        <span className="text-xs text-muted-foreground">A'zolar</span>
+                        <span className="font-bold">{membersCount}</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-muted/50 hover:bg-muted/80 transition-colors">
+                        <CalendarIcon className="w-5 h-5 text-purple-500 mb-1" />
+                        <span className="text-xs text-muted-foreground">Yaratilgan</span>
+                        <span className="font-bold">{group.created_at?.split("T")[0]}</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-muted/50 hover:bg-muted/80 transition-colors">
+                         <MapPin className="w-5 h-5 text-red-500 mb-1" />
+                         <span className="text-xs text-muted-foreground">Manzil</span>
+                         <span className="font-bold truncate max-w-[120px]" title={group.address || "Belgilanmagan"}>
+                            {group.address ? (group.address.length > 15 ? group.address.substring(0, 15) + '...' : group.address) : "Belgilanmagan"}
+                         </span>
+                    </div>
+                </div>
+
+                {/* View on Map Button if coords exist */}
+                {(group.latitude || group.lat) && (group.longitude || group.lng) && (
+                   <div className="mt-6">
+                      <Button variant="outline" className="rounded-full" size="sm">
+                          <MapPin className="w-4 h-4 mr-2" />
+                          Xaritada ko'rish
                       </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                   </div>
+                )}
               </div>
-            ))}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Tasks Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+             <h2 className="text-xl font-bold">{tasks.length} ta Topshiriq</h2>
           </div>
-        )}
+          
+          {tasks.length === 0 ? (
+            <div className="text-center py-12 bg-card rounded-3xl border border-dashed border-border">
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FileText className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h3 className="font-semibold text-lg">Hozircha topshiriqlar yo'q</h3>
+              <p className="text-muted-foreground text-sm">O'qituvchi hali topshiriq yuklamagan.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {tasks.map((task, index) => (
+                <motion.div
+                  key={task.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  onClick={() => navigate(`/student-dashboard/tasks/${task.id}`)}
+                >
+                  <Card className="rounded-2xl border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group h-full">
+                    <CardContent className="p-6 h-full flex flex-col">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className={`p-3 rounded-xl ${
+                                task.type === 'homework' 
+                                ? 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' 
+                                : 'bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400'
+                            }`}>
+                                {task.type === 'homework' ? <FileText className="w-6 h-6" /> : <MapPin className="w-6 h-6" />}
+                            </div>
+                            <Badge variant={task.type === 'homework' ? "default" : "secondary"}>
+                                {task.type === 'homework' ? "Uyga vazifa" : "Amaliyot"}
+                            </Badge>
+                        </div>
+                        
+                        <h3 className="font-bold text-lg mb-2 group-hover:text-primary transition-colors line-clamp-1">
+                            {task.title}
+                        </h3>
+                        <p className="text-muted-foreground text-sm mb-4 line-clamp-2 flex-grow">
+                            {task.description}
+                        </p>
+                        
+                        <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-4 border-t border-border">
+                            <div className="flex items-center">
+                                <Clock className="w-3 h-3 mr-1" />
+                                {task.type === 'internship' ? (
+                                    <span>{task.date ? new Date(task.date).toLocaleDateString() : "Sana belgilanmagan"}</span>
+                                ) : (
+                                    <span>{task.deadline ? new Date(task.deadline).toLocaleDateString() : "Muddatsiz"}</span>
+                                )}
+                            </div>
+                            {task.max_score && (
+                                <div className="font-semibold text-primary">
+                                    {task.max_score} Ball
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

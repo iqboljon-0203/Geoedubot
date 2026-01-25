@@ -9,9 +9,16 @@
     "delete": "Delete",
     "edit": "Edit",
     "back": "Back",
+    "next": "Next",
     "submit": "Submit",
     "search": "Search",
-    "view_all": "View All"
+    "view_all": "View All",
+    "logout": "Logout",
+    "status": "Status",
+    "active": "Active",
+    "no_schedule": "No schedule",
+    "find_partners": "Find study partners and mentors",
+    "ahead_of_students": "You're ahead of 70% of students"
   },
   "auth": {
     "select_role": "Select your role to continue",
@@ -19,12 +26,24 @@
     "student": "Student",
     "teacher_desc": "Manage groups, create tasks, and grade submissions.",
     "student_desc": "Join groups, complete tasks, and track your grades.",
-    "continue": "Continue"
+    "continue": "Continue",
+    "step_of": "STEP {{current}} OF {{total}}"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "tasks": "Tasks",
+    "groups": "Groups",
+    "answers": "Answers",
+    "grades": "Grades",
+    "calendar": "Calendar",
+    "profile": "Profile",
+    "settings": "Settings"
   },
   "dashboard": {
     "welcome_back": "Welcome back, {{name}}! 👋",
     "teacher_subtitle": "Here's what's happening with your groups today.",
     "student_subtitle": "Track your learning progress.",
+    "teacher_dashboard": "Teacher Dashboard",
     "stats": {
       "active_groups": "Active Groups",
       "pending_reviews": "Pending Reviews",
@@ -45,11 +64,17 @@
     },
     "recent_activity": {
       "title": "Recent Activity",
-      "no_activity": "No recent activity"
+      "no_activity": "No recent activity",
+      "created_group": "Created New Group",
+      "assigned_task": "Assigned New Task",
+      "new_submission": "New Submission",
+      "student_joined": "New Student Joined",
+      "submitted_on": "{{student}} submitted on {{task}}",
+      "joined_group": "{{student}} joined {{group}}"
     },
     "my_groups": {
-        "title": "My Groups",
-        "join_new": "Join a New Group"
+      "title": "My Groups",
+      "join_new": "Join a New Group"
     },
     "weekly_progress": "Weekly Progress"
   },
@@ -68,14 +93,65 @@
     "submit_answer": "Submit Answer",
     "update_submission": "Update Submission",
     "points_possible": "Points Possible",
-    "remaining": "remaining"
+    "remaining": "remaining",
+    "next": "Next"
+  },
+  "grading": {
+    "title": "Grading",
+    "grade_submission": "Grade Submission",
+    "submitted": "Submitted",
+    "submitted_file": "Submitted File",
+    "no_file": "No file submitted",
+    "preview_not_available": "Preview not available",
+    "open_file": "Open File",
+    "download_file": "Download File",
+    "score": "Score",
+    "feedback": "Feedback (Optional)",
+    "feedback_placeholder": "Provide constructive feedback to help the student improve...",
+    "submit_grade": "Submit Grade",
+    "submitting": "Submitting...",
+    "grade_success": "Grade submitted successfully!",
+    "grade_error": "Failed to submit grade",
+    "load_error": "Failed to load submission",
+    "not_found": "Submission not found",
+    "perfect": "Perfect! 🎉",
+    "excellent": "Excellent! 🌟",
+    "good": "Good job! 👍",
+    "keep_trying": "Keep trying! 💪",
+    "needs_improvement": "Needs improvement 📚"
   },
   "groups": {
-    "create_new": "Create Group",
+    "create_new": "Create New Group",
     "group_name": "Group Name",
+    "group_name_placeholder": "e.g., English Elementary A1",
     "description": "Description",
-    "members": "Members",
-    "join_code": "Group Code"
+    "description_placeholder": "Add a brief description about this group...",
+    "members": "members",
+    "join_code": "Group code copied",
+    "select_location": "Select Location",
+    "location": "Location",
+    "drag_map_hint": "Drag the map to position the pin at your desired location",
+    "confirm_location": "Confirm Location",
+    "current_selection": "Current Selection",
+    "loading_address": "Loading address...",
+    "search_location": "Search location...",
+    "my_location": "My Location"
+  },
+  "profile": {
+    "title": "Profile",
+    "my_profile": "My Profile",
+    "manage_info": "Manage your personal information",
+    "name": "Name",
+    "enter_name": "Enter your name",
+    "username": "Username",
+    "role": "Role",
+    "saving": "Saving...",
+    "image_uploaded": "Image uploaded",
+    "profile_updated": "Profile updated",
+    "quick_info": "Quick Info",
+    "danger_zone": "Danger Zone",
+    "logout_description": "Click the button below to logout from your account",
+    "logout_from_app": "Click the button below to logout from the app"
   },
   "settings": {
     "title": "Settings",
@@ -83,5 +159,16 @@
     "theme": "Theme",
     "dark_mode": "Dark Mode",
     "light_mode": "Light Mode"
+  },
+  "splash": {
+    "tagline": "Explore the world, one lesson at a time",
+    "loading": "LOADING"
+  },
+  "accessibility": {
+    "notifications": "Notifications",
+    "open_profile": "Open profile",
+    "navigate_to": "Navigate to {{page}} page",
+    "loading_content": "Loading content",
+    "menu_button": "Menu button"
   }
 }

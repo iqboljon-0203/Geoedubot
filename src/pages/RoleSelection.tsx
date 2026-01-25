@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useTelegramAuth } from "@/contexts/TelegramAuthContext";
-import { Globe, GraduationCap, BookOpen, ArrowRight } from "lucide-react";
+import { Globe, GraduationCap, BookOpen, ArrowRight, Loader2 } from "lucide-react";
 
 export default function RoleSelection() {
   const navigate = useNavigate();
@@ -104,7 +104,7 @@ export default function RoleSelection() {
 
         {isLoading && (
           <div className="text-center">
-            <div className="inline-block w-6 h-6 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto" />
           </div>
         )}
       </div>

@@ -43,7 +43,7 @@ export default function GroupDetails() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-slate-50 to-zinc-100 pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-xl border-b border-zinc-200/60">
+      <div className="sticky top-0 z-10 bg-card border-b border-border shadow-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between gap-3">
             <Button 

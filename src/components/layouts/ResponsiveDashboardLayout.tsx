@@ -13,9 +13,9 @@ export const ResponsiveDashboardLayout = () => {
   if (!role) return null;
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-zinc-50 dark:bg-black">
+    <div className="min-h-screen flex flex-col md:flex-row bg-background">
       {/* Desktop Sidebar - Hidden on mobile via CSS */}
-      <aside className="hidden md:flex w-64 lg:w-72 h-screen sticky top-0 flex-shrink-0 border-r border-zinc-200/60 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl">
+      <aside className="hidden md:flex w-64 lg:w-72 h-screen sticky top-0 flex-shrink-0 border-r border-border bg-card">
         <SidebarNavigation role={role} />
       </aside>
       

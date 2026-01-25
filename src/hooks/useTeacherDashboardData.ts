@@ -11,8 +11,9 @@ export interface DashboardStats {
 export interface ActivityItem {
   id: string;
   type: 'group_join' | 'task_submit' | 'new_group' | 'new_task';
-  title: string;
+  titleKey: string; // Translation key for title
   subtitle: string;
+  subtitleParams?: Record<string, string>; // Parameters for subtitle translation
   timestamp: string;
   user?: string;
   meta?: any;
@@ -95,9 +96,9 @@ export const useTeacherDashboardData = (userId: string | undefined) => {
                 id,
                 created_at,
                 task_id,
-                tasks (title),
+                tasks!task_id (title),
                 user_id,
-                profiles:user_id (full_name)
+                profiles!user_id (full_name)
             `)
             .in('task_id', allTaskIds)
             .order('created_at', { ascending: false })
@@ -110,14 +111,14 @@ export const useTeacherDashboardData = (userId: string | undefined) => {
         .from('group_members')
         .select(`
            id,
-           created_at,
+           joined_at,
            group_id,
-           groups (name),
+           groups!group_id (name),
            user_id,
-           profiles:user_id (full_name)
+           profiles!user_id (full_name)
         `)
         .in('group_id', groupIds)
-        .order('created_at', { ascending: false })
+        .order('joined_at', { ascending: false })
         .limit(5);
 
 
@@ -129,7 +130,7 @@ export const useTeacherDashboardData = (userId: string | undefined) => {
         activities.push({
             id: `group-${g.id}`,
             type: 'new_group',
-            title: 'Created New Group',
+            titleKey: 'dashboard.recent_activity.created_group',
             subtitle: g.name,
             timestamp: g.created_at
         });
@@ -140,7 +141,7 @@ export const useTeacherDashboardData = (userId: string | undefined) => {
          activities.push({
             id: `task-${t.id}`,
             type: 'new_task',
-            title: 'Assigned New Task',
+            titleKey: 'dashboard.recent_activity.assigned_task',
             subtitle: t.title,
             timestamp: t.created_at
          });
@@ -148,26 +149,32 @@ export const useTeacherDashboardData = (userId: string | undefined) => {
 
       // Add recent submissions
       recentSubmissions.forEach(s => {
+          const studentName = s.profiles?.full_name || 'Student';
+          const taskTitle = s.tasks?.title || 'Task';
           activities.push({
               id: `sub-${s.id}`,
               type: 'task_submit',
-              title: 'New Submission',
-              subtitle: `${s.profiles?.full_name} submitted on ${s.tasks?.title}`,
+              titleKey: 'dashboard.recent_activity.new_submission',
+              subtitle: `${studentName} - ${taskTitle}`,
+              subtitleParams: { student: studentName, task: taskTitle },
               timestamp: s.created_at,
-              user: s.profiles?.full_name,
+              user: studentName,
               meta: { answerId: s.id }
           });
       });
       
       // Add recent joins
       recentJoins?.forEach(j => {
+         const studentName = j.profiles?.full_name || 'Student';
+         const groupName = j.groups?.name || 'Group';
          activities.push({
             id: `join-${j.id}`,
             type: 'group_join',
-            title: 'New Student Joined',
-            subtitle: `${j.profiles?.full_name} joined ${j.groups?.name}`,
-            timestamp: j.created_at,
-            user: j.profiles?.full_name
+            titleKey: 'dashboard.recent_activity.student_joined',
+            subtitle: `${studentName} - ${groupName}`,
+            subtitleParams: { student: studentName, group: groupName },
+            timestamp: j.joined_at,
+            user: studentName
          });
       });
 

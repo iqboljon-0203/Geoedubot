@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, FileText, Send, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, FileText, Send, CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface Answer {
   id: string;
@@ -29,6 +29,7 @@ interface Answer {
 export const GradeSubmission = () => {
   const navigate = useNavigate();
   const { answerId } = useParams<{ answerId: string }>();
+  const { t, i18n } = useTranslation();
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [score, setScore] = useState<number>(5);
   const [feedback, setFeedback] = useState('');
@@ -67,7 +68,7 @@ export const GradeSubmission = () => {
       setScore(5);
     } catch (error) {
       console.error('Error fetching answer:', error);
-      toast.error('Failed to load submission');
+      toast.error(t('grading.load_error'));
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +90,7 @@ export const GradeSubmission = () => {
 
       if (error) throw error;
 
-      toast.success('Grade submitted successfully!', {
+      toast.success(t('grading.grade_success'), {
         icon: <CheckCircle2 className="w-5 h-5 text-green-600" />,
         duration: 3000,
       });
@@ -99,24 +100,44 @@ export const GradeSubmission = () => {
       }, 1500);
     } catch (error) {
       console.error('Error submitting grade:', error);
-      toast.error('Failed to submit grade');
+      toast.error(t('grading.grade_error'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Get formatted date based on current locale
+  const formatDate = (dateStr: string) => {
+    const locale = i18n.language === 'uz' ? 'uz-UZ' : i18n.language === 'ru' ? 'ru-RU' : 'en-US';
+    return new Date(dateStr).toLocaleDateString(locale, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  // Get score feedback message
+  const getScoreFeedback = (score: number, maxScore: number) => {
+    if (score === maxScore) return t('grading.perfect');
+    if (score >= maxScore * 0.8) return t('grading.excellent');
+    if (score >= maxScore * 0.6) return t('grading.good');
+    if (score >= maxScore * 0.4) return t('grading.keep_trying');
+    return t('grading.needs_improvement');
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-background flex items-center justify-center" role="status" aria-label={t('common.loading')}>
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (!answer) {
     return (
-      <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
-        <p className="text-zinc-600">Submission not found</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">{t('grading.not_found')}</p>
       </div>
     );
   }
@@ -124,9 +145,9 @@ export const GradeSubmission = () => {
   const maxScore = 10; // Default max score
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen bg-background" role="main" aria-labelledby="grade-title">
       {/* Header */}
-      <div className="bg-white border-b border-zinc-200 sticky top-0 z-10">
+      <header className="bg-card border-b border-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-4">
             <Button
@@ -134,18 +155,19 @@ export const GradeSubmission = () => {
               size="icon"
               onClick={() => navigate(-1)}
               className="rounded-full"
+              aria-label={t('common.back')}
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex-1">
-              <h1 className="text-xl sm:text-2xl font-bold text-zinc-900">
-                Grade Submission
+              <h1 id="grade-title" className="text-xl sm:text-2xl font-bold text-foreground">
+                {t('grading.grade_submission')}
               </h1>
-              <p className="text-sm text-zinc-600">{answer.tasks?.title}</p>
+              <p className="text-sm text-muted-foreground">{answer.tasks?.title}</p>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -157,46 +179,43 @@ export const GradeSubmission = () => {
             className="space-y-4"
           >
             {/* Student Info */}
-            <Card className="p-6">
+            <Card className="p-6 bg-card border-border">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-semibold text-lg">
+                <div 
+                  className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white font-semibold text-lg"
+                  aria-hidden="true"
+                >
                   {answer.profiles?.full_name?.charAt(0) || 'S'}
                 </div>
                 <div>
-                  <h3 className="font-semibold text-zinc-900">
-                    {answer.profiles?.full_name || 'Student'}
+                  <h3 className="font-semibold text-foreground">
+                    {answer.profiles?.full_name || t('auth.student')}
                   </h3>
-                  <p className="text-sm text-zinc-600">
-                    Submitted{' '}
-                    {new Date(answer.created_at).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+                  <p className="text-sm text-muted-foreground">
+                    {t('grading.submitted')} {formatDate(answer.created_at)}
                   </p>
                 </div>
               </div>
             </Card>
 
             {/* File Preview */}
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold text-zinc-900 mb-4">
-                Submitted File
+            <Card className="p-6 bg-card border-border">
+              <h2 className="text-lg font-semibold text-foreground mb-4">
+                {t('grading.submitted_file')}
               </h2>
               {answer.file_url ? (
                 <div className="space-y-4">
                   {/* File Type Detection */}
                   {answer.file_url.match(/\.(jpg|jpeg|png|gif)$/i) ? (
-                    <div className="rounded-2xl overflow-hidden border border-zinc-200">
+                    <div className="rounded-2xl overflow-hidden border border-border">
                       <img
                         src={answer.file_url}
-                        alt="Submission"
+                        alt={t('grading.submitted_file')}
                         className="w-full h-auto"
                       />
                     </div>
                   ) : answer.file_url.match(/\.pdf$/i) ? (
-                    <div className="aspect-[3/4] rounded-2xl overflow-hidden border border-zinc-200">
+                    <div className="aspect-[3/4] rounded-2xl overflow-hidden border border-border">
                       <iframe
                         src={answer.file_url}
                         className="w-full h-full"
@@ -204,17 +223,17 @@ export const GradeSubmission = () => {
                       />
                     </div>
                   ) : (
-                    <div className="p-8 rounded-2xl border-2 border-dashed border-zinc-300 text-center">
-                      <FileText className="w-12 h-12 text-zinc-400 mx-auto mb-3" />
-                      <p className="text-sm text-zinc-600 mb-4">
-                        Preview not available
+                    <div className="p-8 rounded-2xl border-2 border-dashed border-border text-center">
+                      <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" aria-hidden="true" />
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {t('grading.preview_not_available')}
                       </p>
                       <Button
                         variant="outline"
                         onClick={() => window.open(answer.file_url!, '_blank')}
                         className="rounded-xl"
                       >
-                        Open File
+                        {t('grading.open_file')}
                       </Button>
                     </div>
                   )}
@@ -230,6 +249,7 @@ export const GradeSubmission = () => {
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
+                      aria-hidden="true"
                     >
                       <path
                         strokeLinecap="round"
@@ -238,13 +258,13 @@ export const GradeSubmission = () => {
                         d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                       />
                     </svg>
-                    Download File
+                    {t('grading.download_file')}
                   </Button>
                 </div>
               ) : (
-                <div className="p-8 rounded-2xl border-2 border-dashed border-zinc-300 text-center">
-                  <FileText className="w-12 h-12 text-zinc-400 mx-auto mb-3" />
-                  <p className="text-sm text-zinc-600">No file submitted</p>
+                <div className="p-8 rounded-2xl border-2 border-dashed border-border text-center">
+                  <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" aria-hidden="true" />
+                  <p className="text-sm text-muted-foreground">{t('grading.no_file')}</p>
                 </div>
               )}
             </Card>
@@ -257,31 +277,23 @@ export const GradeSubmission = () => {
             className="space-y-4"
           >
             {/* Score Slider */}
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold text-zinc-900 mb-6">
-                Score
+            <Card className="p-6 bg-card border-border">
+              <h2 className="text-lg font-semibold text-foreground mb-6">
+                {t('grading.score')}
               </h2>
 
               {/* Score Display */}
               <div className="mb-6">
                 <div className="flex items-end justify-center gap-2 mb-2">
-                  <span className="text-6xl font-bold bg-gradient-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  <span className="text-6xl font-bold bg-gradient-to-br from-primary to-purple-600 bg-clip-text text-transparent">
                     {score}
                   </span>
-                  <span className="text-3xl font-semibold text-zinc-400 mb-2">
+                  <span className="text-3xl font-semibold text-muted-foreground mb-2">
                     / {maxScore}
                   </span>
                 </div>
-                <p className="text-center text-sm text-zinc-600">
-                  {score === maxScore
-                    ? 'Perfect! 🎉'
-                    : score >= maxScore * 0.8
-                    ? 'Excellent! 🌟'
-                    : score >= maxScore * 0.6
-                    ? 'Good job! 👍'
-                    : score >= maxScore * 0.4
-                    ? 'Keep trying! 💪'
-                    : 'Needs improvement 📚'}
+                <p className="text-center text-sm text-muted-foreground">
+                  {getScoreFeedback(score, maxScore)}
                 </p>
               </div>
 
@@ -294,8 +306,9 @@ export const GradeSubmission = () => {
                   max={maxScore}
                   step={1}
                   className="w-full"
+                  aria-label={t('grading.score')}
                 />
-                <div className="flex justify-between text-xs text-zinc-500">
+                <div className="flex justify-between text-xs text-muted-foreground">
                   <span>0</span>
                   <span>{maxScore}</span>
                 </div>
@@ -303,13 +316,13 @@ export const GradeSubmission = () => {
             </Card>
 
             {/* Feedback */}
-            <Card className="p-6">
-              <Label htmlFor="feedback" className="text-lg font-semibold mb-4 block">
-                Feedback (Optional)
+            <Card className="p-6 bg-card border-border">
+              <Label htmlFor="feedback" className="text-lg font-semibold mb-4 block text-foreground">
+                {t('grading.feedback')}
               </Label>
               <Textarea
                 id="feedback"
-                placeholder="Provide constructive feedback to help the student improve..."
+                placeholder={t('grading.feedback_placeholder')}
                 rows={6}
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
@@ -318,21 +331,21 @@ export const GradeSubmission = () => {
             </Card>
 
             {/* Submit Button */}
-            <Card className="p-6">
+            <Card className="p-6 bg-card border-border">
               <Button
                 onClick={handleSubmitGrade}
                 disabled={isSubmitting}
-                className="w-full h-14 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold text-lg shadow-lg"
+                className="w-full h-14 rounded-2xl bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold text-lg shadow-lg"
               >
                 {isSubmitting ? (
                   <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Submitting...
+                    <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+                    {t('grading.submitting')}
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <Send className="w-5 h-5" />
-                    Submit Grade
+                    <Send className="w-5 h-5" aria-hidden="true" />
+                    {t('grading.submit_grade')}
                   </div>
                 )}
               </Button>

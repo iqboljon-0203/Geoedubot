@@ -4,7 +4,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, FileText, Save } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,26 +22,28 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
-
-// Form validation schema
-const taskSchema = z.object({
-  title: z.string().min(3, 'Title must be at least 3 characters'),
-  description: z.string().min(10, 'Description must be at least 10 characters'),
-  type: z.enum(['homework', 'internship']),
-  deadline: z.date({
-    required_error: 'Please select a deadline',
-  }),
-  maxScore: z.number().min(1).max(10),
-});
-
-type TaskFormData = z.infer<typeof taskSchema>;
+import { useTranslation } from 'react-i18next';
 
 export const CreateTask = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { groupId } = useParams<{ groupId: string }>();
   const { userId } = useAuthStore();
   const [file, setFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form validation schema inside component to use 't'
+  const taskSchema = z.object({
+    title: z.string().min(3, t('tasks.create.validation.title_min')),
+    description: z.string().min(10, t('tasks.create.validation.desc_min')),
+    type: z.enum(['homework', 'internship']),
+    deadline: z.date({
+      required_error: t('tasks.create.validation.deadline_required'),
+    }),
+    maxScore: z.number().min(1).max(10),
+  });
+
+  type TaskFormData = z.infer<typeof taskSchema>;
 
   const {
     register,
@@ -98,20 +100,20 @@ export const CreateTask = () => {
 
       if (taskError) throw taskError;
 
-      toast.success('Task created successfully!');
+      toast.success(t('tasks.create.success'));
       navigate(`/teacher/groups/${groupId}`);
     } catch (error) {
       console.error('Error creating task:', error);
-      toast.error('Failed to create task');
+      toast.error(t('tasks.create.error'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 pb-24 sm:pb-8">
+    <div className="min-h-screen bg-background pb-24 sm:pb-8">
       {/* Header */}
-      <div className="bg-white border-b border-zinc-200 sticky top-0 z-10">
+      <div className="bg-card border-b border-border sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-4">
             <Button
@@ -120,12 +122,12 @@ export const CreateTask = () => {
               onClick={() => navigate(-1)}
               className="rounded-full"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-5 h-5 text-foreground" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-zinc-900">Create Task</h1>
-              <p className="text-sm text-zinc-600">
-                Add a new assignment for your students
+              <h1 className="text-2xl font-bold text-foreground">{t('tasks.create.title')}</h1>
+              <p className="text-sm text-muted-foreground">
+                {t('tasks.create.subtitle')}
               </p>
             </div>
           </div>
@@ -142,8 +144,8 @@ export const CreateTask = () => {
             transition={{ delay: 0.1 }}
           >
             <Card className="p-6">
-              <Label className="text-base font-semibold mb-4 block">
-                Task Type
+              <Label className="text-base font-semibold mb-4 block text-foreground">
+                {t('tasks.create.type')}
               </Label>
               <Controller
                 name="type"
@@ -158,8 +160,8 @@ export const CreateTask = () => {
                       className={cn(
                         'relative p-6 rounded-2xl border-2 transition-all',
                         field.value === 'homework'
-                          ? 'border-blue-600 bg-gradient-to-br from-blue-50 to-purple-50'
-                          : 'border-zinc-200 hover:border-zinc-300'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-muted-foreground/30'
                       )}
                     >
                       <div className="flex flex-col items-center gap-3">
@@ -167,16 +169,16 @@ export const CreateTask = () => {
                           className={cn(
                             'w-12 h-12 rounded-xl flex items-center justify-center',
                             field.value === 'homework'
-                              ? 'bg-gradient-to-br from-blue-600 to-purple-600'
-                              : 'bg-zinc-100'
+                              ? 'bg-primary'
+                              : 'bg-muted'
                           )}
                         >
                           <FileText
                             className={cn(
                               'w-6 h-6',
                               field.value === 'homework'
-                                ? 'text-white'
-                                : 'text-zinc-600'
+                                ? 'text-primary-foreground'
+                                : 'text-muted-foreground'
                             )}
                           />
                         </div>
@@ -184,11 +186,11 @@ export const CreateTask = () => {
                           className={cn(
                             'font-semibold',
                             field.value === 'homework'
-                              ? 'text-blue-900'
-                              : 'text-zinc-700'
+                              ? 'text-primary'
+                              : 'text-muted-foreground'
                           )}
                         >
-                          Homework
+                          {t('tasks.create.homework')}
                         </span>
                       </div>
                     </motion.button>
@@ -201,8 +203,8 @@ export const CreateTask = () => {
                       className={cn(
                         'relative p-6 rounded-2xl border-2 transition-all',
                         field.value === 'internship'
-                          ? 'border-green-600 bg-gradient-to-br from-green-50 to-emerald-50'
-                          : 'border-zinc-200 hover:border-zinc-300'
+                          ? 'border-green-600 bg-green-500/5'
+                          : 'border-border hover:border-muted-foreground/30'
                       )}
                     >
                       <div className="flex flex-col items-center gap-3">
@@ -210,8 +212,8 @@ export const CreateTask = () => {
                           className={cn(
                             'w-12 h-12 rounded-xl flex items-center justify-center',
                             field.value === 'internship'
-                              ? 'bg-gradient-to-br from-green-600 to-emerald-600'
-                              : 'bg-zinc-100'
+                              ? 'bg-green-600'
+                              : 'bg-muted'
                           )}
                         >
                           <span className="text-2xl">
@@ -222,11 +224,11 @@ export const CreateTask = () => {
                           className={cn(
                             'font-semibold',
                             field.value === 'internship'
-                              ? 'text-green-900'
-                              : 'text-zinc-700'
+                              ? 'text-green-600'
+                              : 'text-muted-foreground'
                           )}
                         >
-                          Internship
+                          {t('tasks.create.internship')}
                         </span>
                       </div>
                     </motion.button>
@@ -243,19 +245,19 @@ export const CreateTask = () => {
             transition={{ delay: 0.2 }}
           >
             <Card className="p-6 space-y-4">
-              <h2 className="text-lg font-semibold text-zinc-900">
-                Basic Information
+              <h2 className="text-lg font-semibold text-foreground">
+                {t('tasks.create.basic_info')}
               </h2>
 
               {/* Title */}
               <div className="space-y-2">
-                <Label htmlFor="title">Task Title</Label>
+                <Label htmlFor="title" className="text-foreground">{t('tasks.create.task_title')}</Label>
                 <Input
                   id="title"
-                  placeholder="e.g., Chapter 5 Exercises"
+                  placeholder={t('tasks.create.title_placeholder')}
                   {...register('title')}
                   className={cn(
-                    'rounded-xl',
+                    'rounded-xl bg-background text-foreground border-border',
                     errors.title && 'border-red-500'
                   )}
                 />
@@ -266,14 +268,14 @@ export const CreateTask = () => {
 
               {/* Description */}
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description" className="text-foreground">{t('tasks.create.description')}</Label>
                 <Textarea
                   id="description"
-                  placeholder="Provide detailed instructions for the task..."
+                  placeholder={t('tasks.create.description_placeholder')}
                   rows={4}
                   {...register('description')}
                   className={cn(
-                    'rounded-xl resize-none',
+                    'rounded-xl resize-none bg-background text-foreground border-border',
                     errors.description && 'border-red-500'
                   )}
                 />
@@ -286,7 +288,7 @@ export const CreateTask = () => {
 
               {/* Max Score */}
               <div className="space-y-2">
-                <Label htmlFor="maxScore">Maximum Score (1-10)</Label>
+                <Label htmlFor="maxScore" className="text-foreground">{t('tasks.create.max_score')}</Label>
                 <Input
                   id="maxScore"
                   type="number"
@@ -294,7 +296,7 @@ export const CreateTask = () => {
                   max={10}
                   {...register('maxScore', { valueAsNumber: true })}
                   className={cn(
-                    'rounded-xl',
+                    'rounded-xl bg-background text-foreground border-border',
                     errors.maxScore && 'border-red-500'
                   )}
                 />
@@ -314,7 +316,7 @@ export const CreateTask = () => {
             transition={{ delay: 0.3 }}
           >
             <Card className="p-6 space-y-4">
-              <h2 className="text-lg font-semibold text-zinc-900">Deadline</h2>
+              <h2 className="text-lg font-semibold text-foreground">{t('tasks.create.deadline')}</h2>
               <Controller
                 name="deadline"
                 control={control}
@@ -324,8 +326,8 @@ export const CreateTask = () => {
                       <Button
                         variant="outline"
                         className={cn(
-                          'w-full justify-start text-left font-normal rounded-xl h-12',
-                          !field.value && 'text-zinc-500',
+                          'w-full justify-start text-left font-normal rounded-xl h-12 bg-background border-border',
+                          !field.value && 'text-muted-foreground',
                           errors.deadline && 'border-red-500'
                         )}
                       >
@@ -333,7 +335,7 @@ export const CreateTask = () => {
                         {field.value ? (
                           format(field.value, 'PPP')
                         ) : (
-                          <span>Pick a date</span>
+                          <span>{t('tasks.create.pick_date')}</span>
                         )}
                       </Button>
                     </PopoverTrigger>
@@ -364,8 +366,8 @@ export const CreateTask = () => {
             transition={{ delay: 0.4 }}
           >
             <Card className="p-6 space-y-4">
-              <h2 className="text-lg font-semibold text-zinc-900">
-                Attachment (Optional)
+              <h2 className="text-lg font-semibold text-foreground">
+                {t('tasks.create.attachment')}
               </h2>
               <FileUpload file={file} onFileSelect={setFile} />
             </Card>
@@ -381,17 +383,17 @@ export const CreateTask = () => {
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="w-full h-14 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold text-lg shadow-lg"
+              className="w-full h-14 rounded-2xl bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-700 text-white font-semibold text-lg shadow-lg border-0"
             >
               {isSubmitting ? (
                 <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Creating...
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  {t('tasks.create.creating')}
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <Save className="w-5 h-5" />
-                  Create Task
+                  {t('tasks.create.create_btn')}
                 </div>
               )}
             </Button>

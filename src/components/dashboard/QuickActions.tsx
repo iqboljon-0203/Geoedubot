@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Calendar, MessageSquare, FileText, Settings } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface QuickAction {
   id: string;
@@ -22,41 +23,45 @@ export const QuickActions = ({
   onReport = () => {},
   onManage = () => {},
 }: QuickActionsProps) => {
+  const { t } = useTranslation();
+  
   const actions: QuickAction[] = [
     {
       id: 'schedule',
-      label: 'Schedule',
-      icon: <Calendar className="w-6 h-6 text-white" />,
-      bg: 'bg-gradient-to-br from-blue-500 to-blue-600',
+      label: t('dashboard.quick_actions.schedule'),
+      icon: <Calendar className="w-6 h-6 text-white" aria-hidden="true" />,
+      bg: 'bg-gradient-to-br from-primary to-blue-600',
       onClick: onSchedule,
     },
     {
       id: 'message',
-      label: 'Message',
-      icon: <MessageSquare className="w-6 h-6 text-zinc-700" />,
-      bg: 'bg-white border-2 border-zinc-200',
+      label: t('nav.answers'),
+      icon: <MessageSquare className="w-6 h-6 text-foreground" aria-hidden="true" />,
+      bg: 'bg-card border-2 border-border',
       onClick: onMessage,
     },
     {
       id: 'report',
-      label: 'Report',
-      icon: <FileText className="w-6 h-6 text-zinc-700" />,
-      bg: 'bg-white border-2 border-zinc-200',
+      label: t('nav.tasks'),
+      icon: <FileText className="w-6 h-6 text-foreground" aria-hidden="true" />,
+      bg: 'bg-card border-2 border-border',
       onClick: onReport,
     },
     {
       id: 'manage',
-      label: 'Manage',
-      icon: <Settings className="w-6 h-6 text-zinc-700" />,
-      bg: 'bg-white border-2 border-zinc-200',
+      label: t('nav.settings'),
+      icon: <Settings className="w-6 h-6 text-foreground" aria-hidden="true" />,
+      bg: 'bg-card border-2 border-border',
       onClick: onManage,
     },
   ];
 
   return (
-    <div>
-      <h3 className="text-lg font-bold text-zinc-900 mb-4">Quick Actions</h3>
-      <div className="grid grid-cols-4 gap-3">
+    <section aria-labelledby="quick-actions-title">
+      <h3 id="quick-actions-title" className="text-lg font-bold text-foreground mb-4">
+        {t('dashboard.quick_actions.title')}
+      </h3>
+      <div className="grid grid-cols-4 gap-3" role="group" aria-label={t('dashboard.quick_actions.title')}>
         {actions.map((action, index) => (
           <motion.button
             key={action.id}
@@ -66,16 +71,17 @@ export const QuickActions = ({
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
             onClick={action.onClick}
-            className="flex flex-col items-center gap-2"
+            className="flex flex-col items-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-2xl p-2"
+            aria-label={action.label}
           >
             <div className={`w-16 h-16 rounded-2xl ${action.bg} flex items-center justify-center shadow-sm`}>
               {action.icon}
             </div>
-            <span className="text-xs font-medium text-zinc-700">{action.label}</span>
+            <span className="text-xs font-medium text-muted-foreground">{action.label}</span>
           </motion.button>
         ))}
       </div>
-    </div>
+    </section>
   );
 };
 

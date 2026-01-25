@@ -7,6 +7,7 @@ export interface Task {
   description?: string;
   type: 'homework' | 'internship';
   deadline: string;
+  date?: string; // For internship tasks
   created_at: string;
   group_id: string;
   groups: {
@@ -47,6 +48,7 @@ export const useStudentTasks = (userId: string | undefined) => {
           description,
           type,
           deadline,
+          date,
           created_at,
           group_id,
           groups (name),

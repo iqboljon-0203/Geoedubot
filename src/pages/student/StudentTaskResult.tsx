@@ -7,7 +7,8 @@ import {
   CheckCircle2, 
   FileText,
   ArrowRight,
-  Share2
+  Share2,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -59,7 +60,7 @@ export default function StudentTaskResult() {
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -86,7 +87,7 @@ export default function StudentTaskResult() {
   return (
     <div className="min-h-screen bg-black text-white pb-32">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-black/80 backdrop-blur-xl border-b border-zinc-800">
+      <div className="sticky top-0 z-10 bg-card border-b border-border shadow-sm">
         <div className="px-4 py-4 flex items-center justify-between">
           <Button
             variant="ghost"

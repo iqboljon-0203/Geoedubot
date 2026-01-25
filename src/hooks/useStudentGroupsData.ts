@@ -21,7 +21,7 @@ export function useStudentGroupsData(userId: string) {
       // 2. Guruh ma'lumotlari
       const { data: groups, error: groupsError } = await supabase
         .from("groups")
-        .select("id, name, description, address, latitude, longitude, created_by")
+        .select("id, name, description, created_by")
         .in("id", groupIds);
       if (groupsError) throw groupsError;
 

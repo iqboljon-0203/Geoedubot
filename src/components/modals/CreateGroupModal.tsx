@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { AdaptiveDrawer } from '@/components/ui/AdaptiveDrawer';
 import { LocationMapPicker } from '@/components/maps/LocationMapPicker';
 import { MapPin, Users, FileText } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface CreateGroupModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export const CreateGroupModal = ({
   onClose,
   onSubmit,
 }: CreateGroupModalProps) => {
+  const { t } = useTranslation();
   const [step, setStep] = useState<'details' | 'location'>('details');
   const [formData, setFormData] = useState({
     name: '',
@@ -69,7 +71,7 @@ export const CreateGroupModal = ({
     <AdaptiveDrawer
       isOpen={isOpen}
       onClose={handleClose}
-      title={step === 'details' ? 'Create New Group' : 'Select Location'}
+      title={step === 'details' ? t('groups.create_new') : t('groups.select_location')}
       className={step === 'location' ? 'sm:max-w-4xl' : ''}
     >
       {step === 'details' ? (
@@ -81,38 +83,38 @@ export const CreateGroupModal = ({
         >
           {/* Group Name */}
           <div className="space-y-2">
-            <Label htmlFor="name" className="text-sm font-semibold text-zinc-700">
-              Group Name *
+            <Label htmlFor="name" className="text-sm font-semibold text-muted-foreground">
+              {t('groups.group_name')} *
             </Label>
             <div className="relative">
               <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-                <Users className="w-5 h-5 text-zinc-400" />
+                <Users className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
               </div>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., English Elementary A1"
-                className="h-14 pl-12 rounded-2xl border-zinc-300 focus:border-blue-500 focus:ring-blue-500"
+                placeholder={t('groups.group_name_placeholder')}
+                className="h-14 pl-12 rounded-2xl border-border focus:border-primary focus:ring-primary"
               />
             </div>
           </div>
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description" className="text-sm font-semibold text-zinc-700">
-              Description (Optional)
+            <Label htmlFor="description" className="text-sm font-semibold text-muted-foreground">
+              {t('groups.description')} ({t('common.optional')})
             </Label>
             <div className="relative">
               <div className="absolute left-4 top-4">
-                <FileText className="w-5 h-5 text-zinc-400" />
+                <FileText className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
               </div>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Add a brief description about this group..."
-                className="min-h-[120px] pl-12 pt-4 rounded-2xl border-zinc-300 focus:border-blue-500 focus:ring-blue-500 resize-none"
+                placeholder={t('groups.description_placeholder')}
+                className="min-h-[120px] pl-12 pt-4 rounded-2xl border-border focus:border-primary focus:ring-primary resize-none"
               />
             </div>
           </div>
@@ -122,16 +124,16 @@ export const CreateGroupModal = ({
             <Button
               variant="outline"
               onClick={handleClose}
-              className="flex-1 h-12 rounded-2xl border-zinc-300"
+              className="flex-1 h-12 rounded-2xl border-border"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={handleNext}
               disabled={!formData.name.trim()}
-              className="flex-1 h-12 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 font-semibold"
+              className="flex-1 h-12 rounded-2xl bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 font-semibold"
             >
-              Next: Location
+              {t('common.next')}: {t('groups.location')}
             </Button>
           </div>
         </motion.div>
@@ -143,7 +145,7 @@ export const CreateGroupModal = ({
           className="space-y-4"
         >
           {/* Map Container */}
-          <div className="w-full h-[400px] md:h-[500px] rounded-2xl overflow-hidden border border-zinc-200/60">
+          <div className="w-full h-[400px] md:h-[500px] rounded-2xl overflow-hidden border border-border">
             <LocationMapPicker
               initialLat={location.lat}
               initialLng={location.lng}
@@ -152,10 +154,10 @@ export const CreateGroupModal = ({
           </div>
 
           {/* Helper Text */}
-          <div className="bg-blue-50 border border-blue-200/60 rounded-2xl p-4">
-            <p className="text-sm text-blue-900">
-              <MapPin className="w-4 h-4 inline mr-2" />
-              Drag the map to position the pin at your desired location
+          <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4">
+            <p className="text-sm text-foreground">
+              <MapPin className="w-4 h-4 inline mr-2" aria-hidden="true" />
+              {t('groups.drag_map_hint')}
             </p>
           </div>
 
@@ -164,15 +166,15 @@ export const CreateGroupModal = ({
             <Button
               variant="outline"
               onClick={handleBack}
-              className="flex-1 h-12 rounded-2xl border-zinc-300"
+              className="flex-1 h-12 rounded-2xl border-border"
             >
-              Back
+              {t('common.back')}
             </Button>
             <Button
               onClick={handleSubmit}
-              className="flex-1 h-12 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 font-semibold"
+              className="flex-1 h-12 rounded-2xl bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 font-semibold"
             >
-              Confirm Location
+              {t('groups.confirm_location')}
             </Button>
           </div>
         </motion.div>
