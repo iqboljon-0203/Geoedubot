@@ -1,42 +1,42 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, ArrowLeft, Calendar, FileText, Edit2 } from "lucide-react";
+import { Plus, Search, Calendar, MapPin, FileText, ArrowLeft, MoreVertical, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
-import { AddTaskModal } from "@/components/modals/AddTaskModal";
-import { TaskDetailsModal } from "@/components/modals/TaskDetailsModal";
 import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 
 interface Task {
   id: string;
   title: string;
-  description?: string;
+  description: string;
   type: "homework" | "internship";
+  group_id: string;
+  created_at: string;
   deadline?: string;
   date?: string;
-  group_id: string;
-  file_url?: string;
 }
 
-export default function TeacherTasks() {
-  const { userId } = useAuthStore();
+const TeacherTasks = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
-  const [groups, setGroups] = useState<any[]>([]);
+  const { userId } = useAuthStore();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { t } = useTranslation();
 
   useEffect(() => {
     const fetchGroups = async () => {
       if (!userId) return;
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("groups")
         .select("id, name")
         .eq("created_by", userId);
-      if (!error && data) setGroups(data);
+      if (data) setGroups(data);
     };
     fetchGroups();
   }, [userId]);
@@ -58,23 +58,24 @@ export default function TeacherTasks() {
   }, [groups, userId]);
 
   const getGroupName = (groupId: string) => {
-    return groups.find((g) => g.id === groupId)?.name || t('nav.groups');
+    return groups.find((g) => g.id === groupId)?.name || "Guruh";
   };
 
-  const handleTaskClick = (task: Task) => {
-    setSelectedTask(task);
-    setIsDetailsOpen(true);
-  };
+  const filteredTasks = tasks.filter(
+    (task) =>
+      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      getGroupName(task.group_id).toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div 
-      className="min-h-screen bg-gradient-to-br from-background via-background to-muted pb-20"
+      className="p-0"
       role="main"
       aria-labelledby="tasks-title"
     >
-      {/* Header - solid background */}
-      <header className="sticky top-0 z-10 bg-card border-b border-border shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      {/* Premium Header */}
+      <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-xl border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button
@@ -87,148 +88,103 @@ export default function TeacherTasks() {
               <h1 id="tasks-title" className="text-xl font-bold text-foreground">{t('nav.tasks')}</h1>
             </div>
             <Button
-              onClick={() => setIsAddModalOpen(true)}
-              className="h-10 rounded-2xl bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
+              onClick={() => navigate("/teacher-dashboard/tasks/add")}
+              className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
             >
-              <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
-              {t('dashboard.quick_actions.create_task')}
+              <Plus className="w-5 h-5 sm:mr-2" aria-hidden="true" />
+              <span className="hidden sm:inline">{t('tasks.add_new')}</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {tasks.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-20 h-20 rounded-full bg-card flex items-center justify-center mx-auto mb-4 shadow-sm border border-border">
-              <FileText className="w-10 h-10 text-muted-foreground" aria-hidden="true" />
+      {/* Content Area */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <div className="relative group">
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5 z-20 group-focus-within:text-primary transition-colors" />
+          <Input
+            placeholder={t('common.search', 'Qidirish...')}
+            className="pl-12 h-14 rounded-2xl bg-card border-border focus:ring-primary shadow-sm relative z-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        {filteredTasks.length === 0 ? (
+          <div className="text-center py-20 bg-card rounded-3xl border border-border">
+            <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <ClipboardList className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              {t('dashboard.recent_activity.no_activity')}
-            </h3>
-            <p className="text-muted-foreground mb-6">
-              {t('dashboard.quick_actions.create_task')}
-            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">{t('tasks.no_tasks_yet')}</h3>
+            <p className="text-muted-foreground mb-6">{t('tasks.no_tasks_found')}</p>
             <Button
-              onClick={() => setIsAddModalOpen(true)}
-              className="h-12 px-6 rounded-2xl bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
+              onClick={() => navigate("/teacher-dashboard/tasks/add")}
+              className="rounded-full"
             >
-              <Plus className="w-5 h-5 mr-2" aria-hidden="true" />
-              {t('dashboard.quick_actions.create_task')}
+              {t('tasks.add_new')}
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" role="list">
-            {tasks.map((task) => (
-              <div
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+            {filteredTasks.map((task) => (
+              <Card
                 key={task.id}
-                className="bg-card rounded-3xl p-6 shadow-sm border border-border hover:shadow-md transition-all cursor-pointer group focus-within:ring-2 focus-within:ring-primary"
-                onClick={() => handleTaskClick(task)}
-                role="listitem"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && handleTaskClick(task)}
-                aria-label={task.title}
+                className="group p-6 bg-card border-border hover:border-primary transition-all hover:shadow-xl cursor-pointer overflow-hidden relative"
+                onClick={() => navigate(`/teacher-dashboard/groups/${task.group_id}`)}
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center" aria-hidden="true">
-                    <span className="text-2xl">
-                      {task.type === "homework" ? "📝" : "💼"}
+                {/* Type Indicator */}
+                <div className={cn(
+                  "absolute left-0 top-0 bottom-0 w-1.5 transition-colors",
+                  task.type === "homework" ? "bg-blue-500" : "bg-orange-500"
+                )} />
+
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-10 h-10 rounded-xl flex items-center justify-center",
+                      task.type === "homework" ? "bg-blue-500/10 text-blue-600" : "bg-orange-500/10 text-orange-600"
+                    )}>
+                      {task.type === "homework" ? <FileText className="w-5 h-5" /> : <MapPin className="w-5 h-5" />}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg group-hover:text-primary transition-colors line-clamp-1 pr-8">
+                        {task.title}
+                      </h3>
+                      <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider">
+                        {getGroupName(task.group_id)}
+                      </Badge>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" className="rounded-full -mt-2 -mr-2">
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <p className="text-sm text-muted-foreground mb-6 line-clamp-2 leading-relaxed">
+                  {task.description}
+                </p>
+
+                <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
+                    <Calendar className="w-4 h-4" />
+                    <span>
+                      {task.deadline || task.date ? new Date(task.deadline || task.date || '').toLocaleDateString() : t('common.no_date')}
                     </span>
                   </div>
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      task.type === "homework"
-                        ? "bg-primary/10 text-primary"
-                        : "bg-green-500/10 text-green-600"
-                    }`}
-                  >
-                    {task.type === "homework" ? t('tasks.todo') : t('tasks.done')}
-                  </span>
+                  <Badge className={cn(
+                    "rounded-lg font-bold px-3 py-1",
+                    task.type === "homework" ? "bg-blue-500/10 text-blue-600 border-blue-500/20" : "bg-orange-500/10 text-orange-600 border-orange-500/20"
+                  )}>
+                    {task.type === "homework" ? t('tasks.homework') : t('tasks.internship')}
+                  </Badge>
                 </div>
-
-                <h3 className="text-lg font-bold text-foreground mb-2 truncate">
-                  {task.title}
-                </h3>
-                
-                {task.description && (
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                    {task.description}
-                  </p>
-                )}
-
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <FileText className="w-4 h-4" aria-hidden="true" />
-                    <span>{getGroupName(task.group_id)}</span>
-                  </div>
-                  {(task.deadline || task.date) && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Calendar className="w-4 h-4" aria-hidden="true" />
-                      <span>
-                        {new Date(
-                          task.deadline || task.date || ""
-                        ).toLocaleDateString()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleTaskClick(task);
-                  }}
-                  className="w-full py-2 rounded-xl bg-muted hover:bg-accent text-foreground font-medium text-sm transition-colors flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <Edit2 className="w-4 h-4" aria-hidden="true" />
-                  {t('common.edit')}
-                </button>
-              </div>
+              </Card>
             ))}
           </div>
         )}
       </div>
-
-      <AddTaskModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        group={groups.length > 0 ? { id: groups[0].id, title: groups[0].name } : null}
-        onSubmit={async () => {
-          // Refresh tasks after adding
-          if (groups.length > 0) {
-            const { data } = await supabase
-              .from("tasks")
-              .select("*")
-              .in("group_id", groups.map((g) => g.id))
-              .order("created_at", { ascending: false });
-            if (data) setTasks(data);
-          }
-        }}
-      />
-
-      {selectedTask && (
-        <TaskDetailsModal
-          isOpen={isDetailsOpen}
-          onClose={() => {
-            setIsDetailsOpen(false);
-            setSelectedTask(null);
-          }}
-          task={{
-            id: selectedTask.id,
-            title: selectedTask.title,
-            type: selectedTask.type,
-            group: getGroupName(selectedTask.group_id),
-            deadline: selectedTask.deadline,
-            desc: selectedTask.description,
-            fileUrl: selectedTask.file_url,
-          }}
-          onSave={async (updatedTask) => {
-            // Update logic here
-            setIsDetailsOpen(false);
-            setSelectedTask(null);
-          }}
-        />
-      )}
     </div>
   );
-}
+};
+
+export default TeacherTasks;

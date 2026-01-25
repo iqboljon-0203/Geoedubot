@@ -21,8 +21,7 @@ export const ResponsiveDashboardLayout = () => {
       
       {/* Main Content Area */}
       <main className="flex-1 min-w-0">
-        {/* Mobile: pb-24 for bottom nav, Desktop: pb-6 */}
-        <div className="min-h-screen pb-24 md:pb-6">
+        <div className="pb-24 md:pb-6">
           <Outlet />
         </div>
       </main>

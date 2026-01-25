@@ -45,9 +45,9 @@ export default function StudentGrades() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border">
+    <div className="p-0">
+      {/* Premium Header */}
+      <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-3">
             <button
@@ -59,7 +59,7 @@ export default function StudentGrades() {
             <h1 className="text-xl font-bold text-foreground">{t('grades.all_submissions')}</h1>
           </div>
         </div>
-      </div>
+      </header>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
         {isLoading ? (
@@ -117,7 +117,7 @@ export default function StudentGrades() {
                               : "bg-orange-500/10 text-orange-600 dark:text-orange-400"
                           )}
                         >
-                          {task.type === "homework" ? t('auth.student') : t('tasks.internship')}
+                          {task.type === "homework" ? t('tasks.homework') : t('tasks.internship')}
                         </Badge>
                       </div>
                     </div>

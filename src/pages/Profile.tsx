@@ -72,8 +72,8 @@ const ResponsiveProfile = () => {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const updates: any = { name: formName };
-      if (formAvatar) updates.profile_url = formAvatar;
+      const updates: any = { full_name: formName };
+      if (formAvatar) updates.avatar = formAvatar;
 
       const { error } = await supabase
         .from('profiles')

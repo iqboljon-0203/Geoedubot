@@ -94,7 +94,12 @@
     "update_submission": "Update Submission",
     "points_possible": "Points Possible",
     "remaining": "remaining",
-    "next": "Next"
+    "next": "Next",
+    "homework": "Homework",
+    "internship": "Internship",
+    "no_tasks_yet": "No tasks yet",
+    "no_tasks_found": "No tasks found matching your criteria",
+    "add_new": "Add new task"
   },
   "grading": {
     "title": "Grading",
@@ -122,11 +127,15 @@
   },
   "groups": {
     "create_new": "Create New Group",
+    "no_groups_yet": "No groups yet",
+    "create_first": "Create your first group to start assigning tasks",
+    "created": "Group created successfully",
     "group_name": "Group Name",
     "group_name_placeholder": "e.g., English Elementary A1",
     "description": "Description",
     "description_placeholder": "Add a brief description about this group...",
     "members": "members",
+    "students_count": "students",
     "join_code": "Group code copied",
     "select_location": "Select Location",
     "location": "Location",

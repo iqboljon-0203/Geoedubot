@@ -32,13 +32,13 @@ export default function StudentGroups() {
 
   return (
     <div 
-      className="min-h-screen bg-background text-foreground pb-24"
+      className="p-0"
       role="main"
       aria-labelledby="groups-title"
     >
-      {/* Header */}
-      <header className="border-b border-border sticky top-0 z-10 bg-card shadow-sm">
-        <div className="px-4 sm:px-6 py-4">
+      {/* Premium Header */}
+      <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-xl border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
@@ -63,7 +63,7 @@ export default function StudentGroups() {
         </div>
       </header>
 
-      <div className="px-4 sm:px-6 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Groups List */}
         {isLoading ? (
           <div className="text-center py-16" role="status" aria-label={t('common.loading')}>

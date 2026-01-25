@@ -77,7 +77,7 @@ export default function StudentGroupTasks() {
   if (!group) return <div className="p-8 text-center">Guruh topilmadi</div>;
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="p-0">
       {/* Decorative Header Background */}
       <div className="h-48 bg-gradient-to-r from-primary/10 via-purple-500/10 to-blue-500/10 relative">
         <div className="max-w-5xl mx-auto px-4 pt-6">

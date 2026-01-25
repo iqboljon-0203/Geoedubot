@@ -145,9 +145,9 @@ export const GradeSubmission = () => {
   const maxScore = 10; // Default max score
 
   return (
-    <div className="min-h-screen bg-background" role="main" aria-labelledby="grade-title">
-      {/* Header */}
-      <header className="bg-card border-b border-border sticky top-0 z-10">
+    <div className="p-0" role="main" aria-labelledby="grade-title">
+      {/* Premium Header */}
+      <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-4">
             <Button
