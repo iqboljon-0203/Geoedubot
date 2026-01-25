@@ -128,7 +128,7 @@ const RoleSelection = () => {
         className="mb-8"
       >
         <div className="w-20 h-20 rounded-3xl overflow-hidden shadow-lg shadow-primary/20">
-          <img src="/logo.png" alt="GeoEdubot Logo" className="w-full h-full object-cover" />
+          <img src="/logo_white.png" alt="GeoEdubot Logo" className="w-full h-full object-cover" />
         </div>
       </motion.div>
 

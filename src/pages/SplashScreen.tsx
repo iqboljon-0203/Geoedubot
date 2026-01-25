@@ -35,7 +35,7 @@ const SplashScreen = () => {
         className="mb-8"
       >
         <div className="w-32 h-32 rounded-[2.5rem] overflow-hidden shadow-2xl shadow-primary/30">
-          <img src="/logo.png" alt="GeoEdubot Logo" className="w-full h-full object-cover" />
+          <img src="/logo_white.png" alt="GeoEdubot Logo" className="w-full h-full object-cover" />
         </div>
       </motion.div>
 

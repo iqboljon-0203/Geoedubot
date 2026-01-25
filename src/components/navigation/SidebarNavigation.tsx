@@ -112,7 +112,7 @@ const SidebarNavigation = ({ role }: SidebarNavigationProps) => {
             className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-primary/20"
             aria-hidden="true"
           >
-            <img src="/logo.png" alt="GeoEdubot Logo" className="w-full h-full object-cover" />
+            <img src="/logo_white.png" alt="GeoEdubot Logo" className="w-full h-full object-cover" />
           </div>
           <div>
             <h1 className="text-lg font-bold text-foreground">GeoEdubot</h1>
