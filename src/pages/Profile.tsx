@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 
 const ResponsiveProfile = () => {
-  const { userId, name, email, role, profileUrl, logout } = useAuthStore();
+  const { userId, name, email, role, profileUrl, logout, setUser } = useAuthStore();
   const { signOut } = useTelegramAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -86,8 +86,14 @@ const ResponsiveProfile = () => {
         title: t('common.success'),
         description: t('profile.profile_updated'),
       });
+      setUser({
+        id: userId!,
+        email: email!,
+        name: formName,
+        role: role!,
+        profileUrl: formAvatar || profileUrl,
+      });
       setIsEditing(false);
-      window.location.reload();
     } catch (error: any) {
       toast({
         title: t('common.error'),
