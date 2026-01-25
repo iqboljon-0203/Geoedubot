@@ -84,7 +84,7 @@ export const SubmitAnswerModal = ({
                 const d = calculateDistance(latitude, longitude, groupLocation.lat, groupLocation.lng);
                 setDistance(d);
 
-                if (d > 100) {
+                if (d > 500) {
                      // Agar masofa uzoq bo'lsa, lekin GPS aniqligi juda past bo'lsa (masalan 200m dan ko'p), 
                      // demak qurilma aniq GPS koordinatasini olmayapti (ehtimol Wi-Fi/IP location).
                      if (accuracy > 200) {
@@ -141,7 +141,7 @@ export const SubmitAnswerModal = ({
             }
         }
         
-        if (groupLocation && (!currentLocation || (distance !== null && distance > 100))) {
+        if (groupLocation && (!currentLocation || (distance !== null && distance > 500))) {
              toast.error(t('modals.submit.fail_location'));
              return;
         }
@@ -200,7 +200,7 @@ export const SubmitAnswerModal = ({
 
   // Check if today is the correct day for internship
   const isCorrectDay = taskType === 'internship' && taskDate ? isToday(new Date(taskDate)) : true;
-  const isDistanceValid = taskType === 'internship' && groupLocation ? (distance !== null && distance <= 100) : true;
+  const isDistanceValid = taskType === 'internship' && groupLocation ? (distance !== null && distance <= 500) : true;
   const canSubmit = comment || file || existingSubmission;
 
   return (
@@ -258,7 +258,7 @@ export const SubmitAnswerModal = ({
                     {groupLocation ? (
                          <div className={cn(
                              "p-4 rounded-2xl flex items-start gap-3 border transition-colors",
-                             locationError || (distance !== null && distance > 100)
+                             locationError || (distance !== null && distance > 500)
                                 ? "bg-destructive/10 text-destructive border-destructive/20"
                                 : distance !== null 
                                     ? "bg-green-500/10 text-green-600 border-green-500/20"
@@ -266,7 +266,7 @@ export const SubmitAnswerModal = ({
                          )}>
                             {isLocating ? (
                                 <RefreshCw className="w-5 h-5 mt-0.5 animate-spin" /> 
-                            ) : distance !== null && distance <= 100 ? (
+                            ) : distance !== null && distance <= 500 ? (
                                 <CheckCircle2 className="w-5 h-5 mt-0.5" />
                             ) : (
                                 <MapPin className="w-5 h-5 mt-0.5" />
@@ -283,11 +283,11 @@ export const SubmitAnswerModal = ({
                                      {locationError 
                                         ? locationError 
                                         : (distance !== null 
-                                            ? (distance <= 100 ? t('modals.submit.success_location') : t('modals.submit.fail_location')) 
+                                            ? (distance <= 500 ? t('modals.submit.success_location') : t('modals.submit.fail_location')) 
                                             : t('modals.submit.pre_location'))}
                                 </p>
                                 
-                                {(locationError || distance === null || distance > 100) && !isLocating && (
+                                {(locationError || distance === null || distance > 500) && !isLocating && (
                                     <Button 
                                         variant="outline" 
                                         size="sm" 
@@ -308,7 +308,7 @@ export const SubmitAnswerModal = ({
                     {/* Map Visualization */}
                     {(groupLocation || currentLocation) && (
                         <div className="space-y-2">
-                             {(locationError || (distance !== null && distance > 100)) && (
+                             {(locationError || (distance !== null && distance > 500)) && (
                                 <div className="text-xs text-muted-foreground bg-muted p-2 rounded-lg text-center border border-border">
                                     💡 {t('modals.submit.map_hint')}
                                 </div>

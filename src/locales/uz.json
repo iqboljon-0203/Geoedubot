@@ -242,7 +242,7 @@
       "title": "Javob yuborish",
       "geo_not_supported": "Geolokatsiya qurilmangizda qo'llab-quvvatlanmaydi.",
       "gps_accuracy_low": "Qurilma lokatsiyasi noaniq (Xatolik: {{accuracy}}m). Kompyuter yoki Wi-Fi orqali aniq lokatsiyani topib bo'lmaydi. Iltimos, ushbu vazifani GPS mavjud telefondan, belgilangan joyga borib bajaring.",
-      "distance_error": "Siz belgilangan joydan uzoqdasiz ({{distance}}m). Maksimal masofa: 100m.",
+      "distance_error": "Siz belgilangan joydan uzoqdasiz ({{distance}}m). Maksimal masofa: 500m.",
       "location_error_title": "Lokatsiya xatosi",
       "verifying": "Lokatsiya aniqlanmoqda...",
       "check_location": "Lokatsiyani tekshirish",
