@@ -235,41 +235,8 @@ export default function AddTask() {
               </div>
             </div>
 
-            {/* Map Mockup */}
-            <div className="relative w-full h-48 rounded-2xl bg-[#E6EFFF] overflow-hidden border border-slate-100 mb-5 flex items-center justify-center">
-              {/* Fake Map Grid */}
-              <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(#005FB8 1px, transparent 1px), linear-gradient(90deg, #005FB8 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-              
-              {/* Fake Location */}
-              <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg flex items-center gap-2 text-[11px] font-bold text-slate-700 shadow-sm border border-white">
-                <Mountain className="w-3.5 h-3.5 text-[#005FB8]" />
-                Amirsoy Resort Zona #4
-              </div>
-
-              {/* Fake Radius Circles */}
-              <div className="relative w-32 h-32 rounded-full border-2 border-[#00A87A]/30 bg-[#00A87A]/10 flex items-center justify-center animate-[pulse_4s_ease-in-out_infinite]">
-                <div className="w-16 h-16 rounded-full border border-[#00A87A]/40 bg-[#00A87A]/20 flex items-center justify-center">
-                  <div className="w-8 h-8 bg-[#006C4A] rounded-full flex items-center justify-center shadow-lg shadow-[#006C4A]/40">
-                    <MapPin className="w-4 h-4 text-white" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Fake Coordinates */}
-              <div className="absolute bottom-3 bg-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-[11px] font-bold text-slate-700 shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#00D287]"></span>
-                41.5123° N, 70.0245° E
-              </div>
-
-              {/* Radius Label */}
-              <div className="absolute bottom-3 right-3 bg-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-[11px] font-bold text-slate-700 shadow-sm">
-                <TargetIcon className="w-3.5 h-3.5 text-[#00A87A]" />
-                {form.radius.toFixed(1)} km ruxsat
-              </div>
-            </div>
-
             {/* Slider */}
-            <div className="mb-6">
+            <div className="mb-6 mt-4">
               <div className="flex justify-between text-[11px] font-bold text-slate-500 mb-3">
                 <span>Geo-radius doirasi</span>
                 <span className="bg-[#E1F7EE] text-[#006C4A] px-2 py-0.5 rounded-md">{form.radius.toFixed(1)} km</span>
@@ -314,25 +281,6 @@ export default function AddTask() {
             </div>
           </div>
         )}
-
-        {/* Info Cards */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 text-center shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
-            <Award className="w-5 h-5 text-blue-600 mx-auto mb-2" />
-            <div className="font-bold text-slate-900 text-[14px]">+120 XP</div>
-            <div className="text-[10px] text-slate-500">Mukofot bali</div>
-          </div>
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 text-center shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
-            <Camera className="w-5 h-5 text-[#00A87A] mx-auto mb-2" />
-            <div className="font-bold text-slate-900 text-[14px]">3 ta rasm</div>
-            <div className="text-[10px] text-slate-500">Foto-hisobot</div>
-          </div>
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 text-center shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
-            <TargetIcon className="w-5 h-5 text-purple-600 mx-auto mb-2" />
-            <div className="font-bold text-slate-900 text-[14px]">Maks 8m</div>
-            <div className="text-[10px] text-slate-500">GPS aniqligi</div>
-          </div>
-        </div>
 
         {/* Submit Button */}
         <button

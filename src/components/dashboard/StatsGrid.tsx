@@ -30,7 +30,7 @@ export const StatsGrid = ({ stats, isLoading }: StatsGridProps) => {
         </div>
         <div>
           <div className="text-2xl font-bold text-slate-900 leading-none mb-1">
-            {isLoading ? '-' : (stats?.activeGroups || 8)}
+            {isLoading ? '-' : (stats?.activeGroups || 0)}
           </div>
           <div className="text-xs text-slate-500">Guruhlar</div>
         </div>
@@ -47,17 +47,19 @@ export const StatsGrid = ({ stats, isLoading }: StatsGridProps) => {
           <div className="w-8 h-8 rounded-xl bg-red-50 text-red-500 flex items-center justify-center">
             <Hourglass className="w-4 h-4" />
           </div>
-          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse mt-1 mr-1"></span>
+          {(stats?.pendingReviews || 0) > 0 && (
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse mt-1 mr-1"></span>
+          )}
         </div>
         <div className="relative z-10">
           <div className="text-2xl font-bold text-slate-900 leading-none mb-1">
-            {isLoading ? '-' : (stats?.pendingReviews || 14)}
+            {isLoading ? '-' : (stats?.pendingReviews || 0)}
           </div>
           <div className="text-xs text-slate-500">Yangi javob</div>
         </div>
       </motion.div>
 
-      {/* Progress Card */}
+      {/* Progress/Students Card */}
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -68,15 +70,12 @@ export const StatsGrid = ({ stats, isLoading }: StatsGridProps) => {
           <div className="w-8 h-8 rounded-xl bg-green-50 text-[#00A87A] flex items-center justify-center">
             <TrendingUp className="w-4 h-4" />
           </div>
-          <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-md">
-            +4.2%
-          </span>
         </div>
         <div>
           <div className="text-xl font-bold text-slate-900 leading-none mb-1">
-            88.4%
+            {isLoading ? '-' : (stats?.totalStudents || 0)}
           </div>
-          <div className="text-[11px] text-slate-500 truncate">O'zlashtirish</div>
+          <div className="text-[11px] text-slate-500 truncate">Talabalar</div>
         </div>
       </motion.div>
     </div>

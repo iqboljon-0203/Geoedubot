@@ -97,8 +97,6 @@ export function useStudentDashboardData(userId: string) {
          return {
             id: group.id,
             title: group.name,
-            schedule: "Online", // Hozircha statik
-            status: "Active",   // Hozircha statik
             nextTask: nextTaskTitle,
             memberCount: memberCounts[group.id] || 0
          };
