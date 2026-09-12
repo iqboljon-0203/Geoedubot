@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Users, FileText, GraduationCap, ClipboardList } from 'lucide-react';
+import { Users, Hourglass, TrendingUp } from 'lucide-react';
 import { DashboardStats } from '@/hooks/useTeacherDashboardData';
 import { useTranslation } from 'react-i18next';
 
@@ -8,75 +8,78 @@ interface StatsGridProps {
   isLoading?: boolean;
 }
 
-interface StatCardProps {
-  title: string;
-  value: number;
-  icon: React.ReactNode;
-  iconBg: string;
-  delay?: number;
-  isLoading?: boolean;
-}
-
-const StatCard = ({ title, value, icon, iconBg, delay = 0, isLoading }: StatCardProps) => (
-  <motion.article
-    initial={{ y: 20, opacity: 0 }}
-    animate={{ y: 0, opacity: 1 }}
-    transition={{ delay, duration: 0.5 }}
-    whileHover={{ scale: 1.02, y: -4 }}
-    className="bg-card rounded-3xl p-6 shadow-sm border border-border"
-    aria-label={`${title}: ${value}`}
-  >
-    <div className={`w-12 h-12 rounded-2xl ${iconBg} flex items-center justify-center mb-4`} aria-hidden="true">
-      {icon}
-    </div>
-    {isLoading ? (
-      <div className="h-9 w-24 bg-muted rounded-md animate-pulse mb-1 skeleton" role="status" aria-label="Loading" />
-    ) : (
-      <h3 className="text-3xl font-bold text-foreground mb-1">{value}</h3>
-    )}
-    <p className="text-sm text-muted-foreground">{title}</p>
-  </motion.article>
-);
-
 export const StatsGrid = ({ stats, isLoading }: StatsGridProps) => {
   const { t } = useTranslation();
+
   return (
-    <section aria-label={t('dashboard.stats.active_groups')}>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" role="list">
-        <StatCard
-          title={t('dashboard.stats.active_groups')}
-          value={stats?.activeGroups || 0}
-          icon={<Users className="w-6 h-6 text-primary" aria-hidden="true" />}
-          iconBg="bg-primary/10"
-          delay={0}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title={t('dashboard.stats.pending_reviews')}
-          value={stats?.pendingReviews || 0}
-          icon={<FileText className="w-6 h-6 text-orange-600" aria-hidden="true" />}
-          iconBg="bg-orange-500/10"
-          delay={0.1}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title={t('dashboard.stats.total_students')}
-          value={stats?.totalStudents || 0}
-          icon={<GraduationCap className="w-6 h-6 text-purple-600" aria-hidden="true" />}
-          iconBg="bg-purple-500/10"
-          delay={0.2}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title={t('dashboard.stats.total_tasks')}
-          value={stats?.totalTasks || 0}
-          icon={<ClipboardList className="w-6 h-6 text-green-600" aria-hidden="true" />}
-          iconBg="bg-green-500/10"
-          delay={0.3}
-          isLoading={isLoading}
-        />
-      </div>
-    </section>
+    <div className="grid grid-cols-3 gap-3">
+      {/* Groups Card */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.4 }}
+        className="bg-white rounded-3xl p-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 flex flex-col justify-between"
+      >
+        <div className="flex justify-between items-start mb-2">
+          <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <Users className="w-4 h-4" />
+          </div>
+          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+            Faol
+          </span>
+        </div>
+        <div>
+          <div className="text-2xl font-bold text-slate-900 leading-none mb-1">
+            {isLoading ? '-' : (stats?.activeGroups || 8)}
+          </div>
+          <div className="text-xs text-slate-500">Guruhlar</div>
+        </div>
+      </motion.div>
+
+      {/* New Answers Card */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.1, duration: 0.4 }}
+        className="bg-white rounded-3xl p-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 flex flex-col justify-between relative overflow-hidden"
+      >
+        <div className="flex justify-between items-start mb-2 relative z-10">
+          <div className="w-8 h-8 rounded-xl bg-red-50 text-red-500 flex items-center justify-center">
+            <Hourglass className="w-4 h-4" />
+          </div>
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse mt-1 mr-1"></span>
+        </div>
+        <div className="relative z-10">
+          <div className="text-2xl font-bold text-slate-900 leading-none mb-1">
+            {isLoading ? '-' : (stats?.pendingReviews || 14)}
+          </div>
+          <div className="text-xs text-slate-500">Yangi javob</div>
+        </div>
+      </motion.div>
+
+      {/* Progress Card */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.4 }}
+        className="bg-white rounded-3xl p-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 flex flex-col justify-between"
+      >
+        <div className="flex justify-between items-start mb-2">
+          <div className="w-8 h-8 rounded-xl bg-green-50 text-[#00A87A] flex items-center justify-center">
+            <TrendingUp className="w-4 h-4" />
+          </div>
+          <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-md">
+            +4.2%
+          </span>
+        </div>
+        <div>
+          <div className="text-xl font-bold text-slate-900 leading-none mb-1">
+            88.4%
+          </div>
+          <div className="text-[11px] text-slate-500 truncate">O'zlashtirish</div>
+        </div>
+      </motion.div>
+    </div>
   );
 };
 

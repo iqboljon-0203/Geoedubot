@@ -2,20 +2,18 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
-import { GraduationCap, BookOpen, Loader2 } from 'lucide-react';
+import { GraduationCap, Compass, ArrowRight, ShieldCheck, MapPin, Activity, Badge, Navigation } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTelegram } from '@/hooks/useTelegram';
 import { supabase } from '@/lib/supabaseClient';
-import { Button } from '@/components/ui/button';
 
 const RoleSelection = () => {
   const navigate = useNavigate();
   const { setRole, setUser, isAuthenticated, role } = useAuthStore();
   const { t } = useTranslation();
   const { user: telegramUser } = useTelegram();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<string | null>(null);
 
-  // Agar user allaqachon tizimga kirgan bo'lsa, uni yo'naltiramiz
   useEffect(() => {
     if (isAuthenticated && role) {
       const path = role === 'teacher' ? '/teacher-dashboard' : '/student-dashboard';
@@ -23,112 +21,74 @@ const RoleSelection = () => {
     }
   }, [isAuthenticated, role, navigate]);
 
-  // Rol tanlanganda profil yaratish va saqlash
   const handleRoleSelect = async (selectedRole: 'teacher' | 'student') => {
-    // Agar Telegram user bo'lmasa (dev mode), oddiygina lokal store'ga yozib ketamiz
-    if (!telegramUser) {
-      setRole(selectedRole); // Faqat rol o'rnatiladi
-      const path = selectedRole === 'teacher' ? '/teacher-dashboard' : '/student-dashboard';
-      navigate(path);
-      return;
-    }
-
-    setIsLoading(true);
+    setIsLoading(selectedRole);
     try {
+      if (!telegramUser) {
+        setRole(selectedRole);
+        const path = selectedRole === 'teacher' ? '/teacher-dashboard' : '/student-dashboard';
+        navigate(path);
+        return;
+      }
+
       const newProfile = {
         telegram_user_id: telegramUser.id,
         full_name: [telegramUser.first_name, telegramUser.last_name].filter(Boolean).join(' '),
         role: selectedRole,
-        avatar: telegramUser.photo_url || null, // Bu yerda Telegram rasmi olinadi
+        avatar: telegramUser.photo_url || null,
         updated_at: new Date().toISOString(),
       };
 
-      // 5 soniyalik timeout qo'yamiz, agar internet sekin bo'lsa kutib o'tirmaslik uchun
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Request timeout')), 5000)
-      );
-
-      const dbPromise = supabase
+      const { data, error } = await supabase
         .from('profiles')
         .upsert(newProfile, { onConflict: 'telegram_user_id' })
         .select()
         .single();
 
-      // Race condition: database yoki timeout
-      const result: any = await Promise.race([dbPromise, timeoutPromise]);
-      const { data, error } = result;
-
       if (error) throw error;
 
       if (data) {
-        // Store'ni yangilash
         setUser({
           id: data.id,
           email: telegramUser.username || `telegram_${telegramUser.id}`,
           name: data.full_name,
           role: data.role as 'teacher' | 'student',
-          profileUrl: data.avatar, // Bazadagi rasm (Telegramdan olingan)
+          profileUrl: data.avatar,
         });
         localStorage.removeItem('manual_logout');
-
-        const path = selectedRole === 'teacher' ? '/teacher-dashboard' : '/student-dashboard';
-        navigate(path);
+        navigate(selectedRole === 'teacher' ? '/teacher-dashboard' : '/student-dashboard');
       }
     } catch (error) {
       console.error('Error creating profile:', error);
-      // Xato bo'lsa yoki timeout bo'lsa ham, foydalanuvchini kuttirmasdan o'tkazamiz
-      // Faqat lokal saqlab turamiz
       setRole(selectedRole);
-      
-      // Fallback user data
-      setUser({
-        id: telegramUser.id.toString(),
-        email: telegramUser.username || `telegram_${telegramUser.id}`,
-        name: [telegramUser.first_name, telegramUser.last_name].filter(Boolean).join(' '),
-        role: selectedRole,
-        profileUrl: telegramUser.photo_url || null,
-      });
-      localStorage.removeItem('manual_logout');
-
-      const path = selectedRole === 'teacher' ? '/teacher-dashboard' : '/student-dashboard';
-      navigate(path);
+      navigate(selectedRole === 'teacher' ? '/teacher-dashboard' : '/student-dashboard');
     } finally {
-      setIsLoading(false);
+      setIsLoading(null);
     }
   };
 
-  const roles = [
-    {
-      id: 'teacher',
-      title: t('auth.teacher'),
-      description: t('auth.teacher_desc'),
-      icon: GraduationCap,
-      gradient: 'from-primary to-blue-600',
-    },
-    {
-      id: 'student',
-      title: t('auth.student'),
-      description: t('auth.student_desc'),
-      icon: BookOpen,
-      gradient: 'from-purple-500 to-purple-600',
-    },
-  ];
-
   return (
-    <div 
-      className="min-h-screen bg-gradient-to-br from-background via-background to-muted flex flex-col items-center justify-center p-6"
-      role="main"
-      aria-labelledby="role-selection-title"
-    >
-      {/* Logo */}
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center pt-8 pb-12 px-4 relative overflow-hidden font-['Outfit']">
+      
+      {/* Decorative background elements */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/5 rounded-full blur-3xl -z-10 transform translate-x-1/2 -translate-y-1/2"></div>
+      <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl -z-10 transform -translate-x-1/2 translate-y-1/2"></div>
+
+      {/* Top Badge */}
       <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className="mb-8"
+        className="mb-6 flex flex-col items-center"
       >
-        <div className="w-20 h-20 rounded-3xl overflow-hidden shadow-lg shadow-primary/20">
-          <img src="/logo_white.png" alt="GeoEdubot Logo" className="w-full h-full object-cover" />
+        <div className="w-16 h-16 rounded-2xl bg-[#00A87A] flex items-center justify-center shadow-lg shadow-green-500/20 mb-3">
+          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
+             <MapPin className="w-5 h-5 text-[#00A87A]" fill="currentColor" />
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 bg-green-50 text-green-700 px-3 py-1 rounded-full text-xs font-semibold border border-green-100/50">
+          <Compass className="w-3.5 h-3.5" />
+          GeoEducation TWA v2.4
         </div>
       </motion.div>
 
@@ -136,100 +96,124 @@ const RoleSelection = () => {
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.2, duration: 0.5 }}
-        className="text-center mb-12"
+        transition={{ delay: 0.1, duration: 0.5 }}
+        className="text-center mb-8"
       >
-        <h1 
-          id="role-selection-title"
-          className="text-3xl font-bold text-foreground mb-2"
-        >
-          {t('auth.select_role')}
-        </h1>
+        <h1 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight">Xush kelibsiz!</h1>
+        <p className="text-slate-500 text-sm max-w-[260px] mx-auto leading-relaxed">
+          Davom etish uchun tizimdagi rolingizni tanlang
+        </p>
       </motion.div>
 
-      {/* Role Cards */}
-      <div 
-        className="w-full max-w-md space-y-4 mb-8"
-        role="group"
-        aria-label={t('auth.select_role')}
-      >
-        {roles.map((role, index) => {
-          const Icon = role.icon;
-          return (
-            <motion.button
-              key={role.id}
-              initial={{ y: 50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.3 + index * 0.1, duration: 0.5 }}
-              whileHover={{ scale: 1.02, y: -4 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => handleRoleSelect(role.id as 'teacher' | 'student')}
-              disabled={isLoading} // Loading paytida bosib bo'lmaydi
-              className={`relative w-full text-left bg-card rounded-3xl p-6 shadow-sm border border-border hover:shadow-xl hover:border-primary/30 transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${isLoading ? 'opacity-70 cursor-wait' : ''}`}
-              aria-label={`${role.title}: ${role.description}`}
-            >
-              {/* Arrow Icon */}
-              <motion.div
-                className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                initial={{ x: -10 }}
-                whileHover={{ x: 0 }}
-                aria-hidden="true"
-              >
-                <svg
-                  className="w-6 h-6 text-muted-foreground"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </motion.div>
+      {/* Cards Container */}
+      <div className="w-full max-w-sm space-y-4 relative z-10 flex-1">
+        
+        {/* Teacher Card */}
+        <motion.div
+          initial={{ x: -20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-3xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden relative group"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-[#E1F7EE] rounded-bl-full -z-10 transition-transform group-hover:scale-110"></div>
+          
+          <div className="flex justify-between items-start mb-5">
+            <div className="w-12 h-12 rounded-2xl bg-[#5EEDBA] flex items-center justify-center shadow-sm">
+              <GraduationCap className="w-6 h-6 text-slate-900" />
+            </div>
+            <span className="bg-[#BFF5E0] text-[#006644] text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">
+              Tashkilotchi & Mentor
+            </span>
+          </div>
+          
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Men O'qituvchiman</h2>
+          <p className="text-slate-500 text-sm mb-5 leading-relaxed">
+            Guruhlar oching, geo-lokatsiyali amaliyotlar bering va talabalar javoblarini xaritada tekshiring.
+          </p>
 
-              <div className="flex items-start gap-4">
-                {/* Icon */}
-                <motion.div
-                  whileHover={{ rotate: [0, -10, 10, -10, 0] }}
-                  transition={{ duration: 0.5 }}
-                  className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${role.gradient} flex items-center justify-center shadow-lg flex-shrink-0`}
-                  aria-hidden="true"
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-8 h-8 text-white animate-spin" />
-                  ) : (
-                    <Icon className="w-8 h-8 text-white" strokeWidth={2} />
-                  )}
-                </motion.div>
+          <div className="flex gap-2 mb-6">
+            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-600">
+              <MapPin className="w-3.5 h-3.5" /> Geo-topshiriq
+            </div>
+            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-600">
+              <Activity className="w-3.5 h-3.5" /> Jonli monitoring
+            </div>
+          </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-xl font-bold text-foreground mb-2">
-                    {role.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-                    {role.description}
-                  </p>
-                </div>
-              </div>
-            </motion.button>
-          );
-        })}
+          <button
+            onClick={() => handleRoleSelect('teacher')}
+            disabled={isLoading !== null}
+            className="w-full bg-[#006C4A] hover:bg-[#00573B] text-white py-3.5 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+          >
+            {isLoading === 'teacher' ? 'Yuklanmoqda...' : "O'qituvchi sifatida kirish"}
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </motion.div>
+
+        {/* Student Card */}
+        <motion.div
+          initial={{ x: 20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white rounded-3xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden relative group"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-[#EBF4FF] rounded-bl-full -z-10 transition-transform group-hover:scale-110"></div>
+          
+          <div className="flex justify-between items-start mb-5">
+            <div className="w-12 h-12 rounded-2xl bg-[#CDE0FF] flex items-center justify-center shadow-sm">
+              <Compass className="w-6 h-6 text-slate-900" />
+            </div>
+            <span className="bg-[#E0EFFF] text-[#004BB3] text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">
+              O'rganuvchi & Izlanuvchi
+            </span>
+          </div>
+          
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Men Talabaman</h2>
+          <p className="text-slate-500 text-sm mb-5 leading-relaxed">
+            Guruhlarga kod orqali qo'shiling, geo-topshiriqlarni joyida yeching va o'z reytingingizni oshiring.
+          </p>
+
+          <div className="flex gap-2 mb-6">
+            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-600">
+              <Navigation className="w-3.5 h-3.5" /> Joyida tekshiruv
+            </div>
+            <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-600">
+              <Badge className="w-3.5 h-3.5" /> +150 XP & Badj
+            </div>
+          </div>
+
+          <button
+            onClick={() => handleRoleSelect('student')}
+            disabled={isLoading !== null}
+            className="w-full bg-[#005FB8] hover:bg-[#004B91] text-white py-3.5 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+          >
+            {isLoading === 'student' ? 'Yuklanmoqda...' : 'Talaba sifatida kirish'}
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </motion.div>
+
       </div>
 
-      {/* Step Indicator */}
-      <motion.p
+      {/* Footer Info */}
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-        className="text-sm text-muted-foreground uppercase tracking-wider mb-8"
-        aria-live="polite"
+        transition={{ delay: 0.5 }}
+        className="mt-8 text-center"
       >
-        {t('auth.step_of', { current: 1, total: 3 })}
-      </motion.p>
+        <div className="flex items-center justify-center gap-1.5 text-slate-700 font-medium mb-1">
+          <ShieldCheck className="w-4 h-4 text-green-600" />
+          Telegram OAuth 2.0
+        </div>
+        <p className="text-slate-400 text-xs mb-6">
+          Ro'yxatdan o'tish Telegram hisobingiz orqali<br/>avtomatik amalga oshiriladi
+        </p>
+
+        <div className="inline-flex items-center gap-2 bg-blue-50/50 border border-blue-100 text-slate-600 px-4 py-2 rounded-full text-xs font-medium">
+          <span className="w-2 h-2 rounded-full bg-[#00D287] animate-pulse"></span>
+          GPS faol: Toshkent zonasi tayyor
+        </div>
+      </motion.div>
 
     </div>
   );

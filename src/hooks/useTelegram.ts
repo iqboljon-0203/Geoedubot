@@ -13,7 +13,7 @@ export function useTelegram(): UseTelegramResult {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    const useTestUser = () => {
+    const setupTestUser = () => {
       setUser({
         id: 123456789,
         first_name: 'Test',
@@ -46,7 +46,7 @@ export function useTelegram(): UseTelegramResult {
         // WebApp bor, lekin user yo'q (Browserda script yuklangan holat)
         // Agar DEV mode bo'lsa, baribir test user ishlatamiz
         if (import.meta.env.DEV) {
-          useTestUser();
+          setupTestUser();
         } else {
           setIsReady(true);
         }
@@ -54,7 +54,7 @@ export function useTelegram(): UseTelegramResult {
     } else {
       // SDK umuman yo'q
       if (import.meta.env.DEV) {
-        useTestUser();
+        setupTestUser();
       } else {
         setIsReady(true);
       }
