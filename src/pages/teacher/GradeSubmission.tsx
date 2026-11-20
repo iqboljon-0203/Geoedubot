@@ -27,8 +27,9 @@ interface Answer {
 }
 
 const getFullUrl = (url: string) => {
+  if (!url) return '';
   const trimmed = url.trim();
-  if (trimmed.startsWith('http')) return trimmed;
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
   return supabase.storage.from('answers').getPublicUrl(trimmed).data.publicUrl;
 };
 
@@ -211,81 +212,109 @@ export const GradeSubmission = () => {
               </h2>
               {answer.file_url ? (
                 <div className="space-y-4">
-                  {/* File Type Detection */}
-                  {answer.file_url.includes(',') ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      {answer.file_url.split(',').map((url, idx) => {
-                        const fullUrl = getFullUrl(url);
-                        return (
-                          <div 
-                            key={idx} 
-                            className="rounded-2xl overflow-hidden border border-border cursor-pointer hover:opacity-90 transition-opacity bg-muted/20"
-                            onClick={() => window.open(fullUrl, '_blank')}
-                          >
-                            <img
-                              src={fullUrl}
-                              alt={`Dalil ${idx + 1}`}
-                              className="w-full h-36 object-cover"
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : answer.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                    <div className="rounded-2xl overflow-hidden border border-border">
-                      <img
-                        src={getFullUrl(answer.file_url)}
-                        alt={t('grading.submitted_file')}
-                        className="w-full h-auto cursor-pointer"
-                        onClick={() => window.open(getFullUrl(answer.file_url!), '_blank')}
-                      />
-                    </div>
-                  ) : answer.file_url.match(/\.pdf$/i) ? (
-                    <div className="aspect-[3/4] rounded-2xl overflow-hidden border border-border">
-                      <iframe
-                        src={getFullUrl(answer.file_url)}
-                        className="w-full h-full"
-                        title="PDF Preview"
-                      />
-                    </div>
-                  ) : (
-                    <div className="p-8 rounded-2xl border-2 border-dashed border-border text-center">
-                      <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" aria-hidden="true" />
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {t('grading.preview_not_available')}
-                      </p>
-                      <Button
-                        variant="outline"
-                        onClick={() => window.open(getFullUrl(answer.file_url!), '_blank')}
-                        className="rounded-xl"
-                      >
-                        {t('grading.open_file')}
-                      </Button>
-                    </div>
-                  )}
+                  {(() => {
+                    const fileUrls = answer.file_url.split(',').map((u) => u.trim()).filter(Boolean);
+                    return (
+                      <div className="space-y-3">
+                        <div className={`grid ${fileUrls.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-3`}>
+                          {fileUrls.map((rawUrl, idx) => {
+                            const fullUrl = getFullUrl(rawUrl);
+                            const clean = fullUrl.split('?')[0].toLowerCase();
+                            const ext = clean.split('.').pop() || '';
+                            const fileName = decodeURIComponent(fullUrl.split('/').pop()?.split('?')[0] || `Fayl ${idx + 1}`);
+                            const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'bmp'].includes(ext);
+                            const isPdf = ext === 'pdf';
+                            const isWord = ['doc', 'docx'].includes(ext);
 
-                  {/* Download Button */}
-                  <Button
-                    variant="outline"
-                    onClick={() => window.open(getFullUrl(answer.file_url!), '_blank')}
-                    className="w-full rounded-xl"
-                  >
-                    <svg
-                      className="w-5 h-5 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                      />
-                    </svg>
-                    {t('grading.download_file')}
-                  </Button>
+                            return (
+                              <div key={idx} className="rounded-2xl border border-border bg-card p-3 shadow-sm space-y-2.5">
+                                {isImage ? (
+                                  <div
+                                    className="relative h-44 rounded-xl overflow-hidden cursor-pointer group bg-muted/30"
+                                    onClick={() => window.open(fullUrl, '_blank')}
+                                  >
+                                    <img
+                                      src={fullUrl}
+                                      alt={fileName}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                    />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1.5">
+                                      To'liq ko'rish
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
+                                    <div
+                                      className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                                        isPdf
+                                          ? 'bg-red-500/15 text-red-600 dark:text-red-400'
+                                          : isWord
+                                          ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                                          : 'bg-purple-500/15 text-purple-600 dark:text-purple-400'
+                                      }`}
+                                    >
+                                      <FileText className="w-6 h-6" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-semibold text-xs text-foreground truncate" title={fileName}>
+                                        {fileName}
+                                      </p>
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        {isPdf ? 'PDF Hujjat' : isWord ? 'Word Hujjat' : `${ext.toUpperCase()} Fayli`}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => window.open(fullUrl, '_blank')}
+                                    className="flex-1 h-9 rounded-xl text-xs gap-1.5 font-medium"
+                                  >
+                                    {isImage ? "Rasmni ochish" : isPdf ? "PDFni ochish" : "Faylni ochish"}
+                                  </Button>
+
+                                  {isWord && (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="secondary"
+                                      onClick={() =>
+                                        window.open(
+                                          `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=false`,
+                                          '_blank'
+                                        )
+                                      }
+                                      className="h-9 rounded-xl text-xs gap-1 font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                                      title="Google Docs orqali brauzerda ko'rish"
+                                    >
+                                      Online ko'rish
+                                    </Button>
+                                  )}
+
+                                  <a
+                                    href={fullUrl}
+                                    download={fileName}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="h-9 px-3 border border-border rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center justify-center gap-1 text-xs"
+                                    title="Yuklab olish"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                  </a>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : (
                 <div className="p-8 rounded-2xl border-2 border-dashed border-border text-center">

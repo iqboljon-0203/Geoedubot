@@ -57,14 +57,33 @@ export function GradeAnswerModal({
 
   if (!answer) return null;
 
-  // Fayl uchun public URL olish
-  const getPublicUrl = (filePath: string) => {
-    if (!filePath) return null;
-    const { data } = supabase.storage.from("answers").getPublicUrl(filePath);
-    return data.publicUrl;
+  // Fayl uchun to'liq URL olish
+  const normalizeUrl = (filePath: string) => {
+    if (!filePath) return "";
+    const trimmed = filePath.trim();
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      return trimmed;
+    }
+    return supabase.storage.from("answers").getPublicUrl(trimmed).data.publicUrl;
   };
 
-  const publicFileUrl = getPublicUrl(answer.fileUrl);
+  const fileList = answer.fileUrl
+    ? answer.fileUrl
+        .split(",")
+        .map((u) => u.trim())
+        .filter(Boolean)
+        .map(normalizeUrl)
+    : [];
+
+  const getFileInfo = (url: string) => {
+    const clean = url.split("?")[0].toLowerCase();
+    const ext = clean.split(".").pop() || "";
+    const fileName = decodeURIComponent(url.split("/").pop()?.split("?")[0] || "Fayl");
+    const isImage = ["jpg", "jpeg", "png", "gif", "webp", "heic", "bmp"].includes(ext);
+    const isPdf = ext === "pdf";
+    const isWord = ["doc", "docx"].includes(ext);
+    return { ext, fileName, isImage, isPdf, isWord };
+  };
 
   const handleScoreChange = (val: string) => {
     if (val === "") {
@@ -123,7 +142,7 @@ export function GradeAnswerModal({
           </Label>
           
           {/* Description Bubble */}
-          {(answer.description && answer.description !== "EMPTY") || !publicFileUrl ? (
+          {(answer.description && answer.description !== "EMPTY") || fileList.length === 0 ? (
             <div className="bg-blue-50/50 dark:bg-blue-900/10 rounded-2xl p-4 border border-blue-100 dark:border-blue-900/20">
               <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                 {answer.description && answer.description !== "EMPTY" ? answer.description : t('grading.no_description')}
@@ -131,23 +150,108 @@ export function GradeAnswerModal({
             </div>
           ) : null}
 
-          {/* File Attachment Card */}
-          {publicFileUrl && (
-            <a
-              href={publicFileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-4 p-3 rounded-2xl border border-border bg-card hover:bg-accent/50 hover:border-primary/30 transition-all group cursor-pointer"
-            >
-              <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-                <FileIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+          {/* File Attachments */}
+          {fileList.length > 0 && (
+            <div className="space-y-3">
+              <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                <FileIcon className="w-3.5 h-3.5 text-primary" />
+                Biriktirilgan fayllar ({fileList.length} ta):
+              </span>
+
+              <div className="grid grid-cols-1 gap-2.5">
+                {fileList.map((url, idx) => {
+                  const { ext, fileName, isImage, isPdf, isWord } = getFileInfo(url);
+                  return (
+                    <div
+                      key={idx}
+                      className="rounded-2xl border border-border bg-card p-3 shadow-sm hover:border-primary/40 transition-all space-y-2.5"
+                    >
+                      {/* Image Preview */}
+                      {isImage ? (
+                        <div
+                          className="relative h-44 rounded-xl overflow-hidden cursor-pointer group bg-muted/30"
+                          onClick={() => window.open(url, "_blank")}
+                        >
+                          <img
+                            src={url}
+                            alt={fileName}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1.5">
+                            <ExternalLink className="w-4 h-4" /> To'liq ko'rish
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3 p-2 bg-muted/30 rounded-xl">
+                          <div
+                            className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                              isPdf
+                                ? "bg-red-500/15 text-red-600 dark:text-red-400"
+                                : isWord
+                                ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                                : "bg-purple-500/15 text-purple-600 dark:text-purple-400"
+                            }`}
+                          >
+                            <FileIcon className="w-6 h-6" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-xs text-foreground truncate" title={fileName}>
+                              {fileName}
+                            </p>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                              {isPdf ? "PDF Hujjat" : isWord ? "Word Hujjat" : `${ext.toUpperCase()} Fayli`}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* File Action Buttons */}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => window.open(url, "_blank")}
+                          className="flex-1 h-9 rounded-xl text-xs gap-1.5 font-medium"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          {isImage ? "Rasmni ochish" : isPdf ? "PDFni ochish" : "Faylni ochish"}
+                        </Button>
+
+                        {isWord && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              window.open(
+                                `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=false`,
+                                "_blank"
+                              )
+                            }
+                            className="h-9 rounded-xl text-xs gap-1 font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                            title="Brauzerda Google Docs orqali ko'rish"
+                          >
+                            Online ko'rish
+                          </Button>
+                        )}
+
+                        <a
+                          href={url}
+                          download={fileName}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="h-9 px-3 border border-border rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center justify-center gap-1 text-xs"
+                          title="Yuklab olish"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">{t('grading.submitted_file')}</p>
-                <p className="text-xs text-muted-foreground">{t('grading.download_file')}</p>
-              </div>
-              <Download className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-            </a>
+            </div>
           )}
         </div>
 

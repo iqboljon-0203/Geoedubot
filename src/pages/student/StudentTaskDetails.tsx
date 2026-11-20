@@ -141,7 +141,7 @@ export default function StudentTaskDetails() {
 
     const remainingSlots = 4 - evidences.length;
     if (remainingSlots <= 0) {
-      toast.error("Maksimal 4 tagacha rasm biriktirish mumkin.");
+      toast.error("Maksimal 4 tagacha fayl biriktirish mumkin.");
       return;
     }
 
@@ -151,9 +151,17 @@ export default function StudentTaskDetails() {
     // fayl baytlarini darhol xotiraga (ArrayBuffer/Blob) o'qib olamiz
     const newItems: EvidenceItem[] = await Promise.all(
       filesArray.map(async (file) => {
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        let mime = file.type;
+        if (!mime) {
+          if (ext === 'pdf') mime = 'application/pdf';
+          else if (ext === 'docx') mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          else if (ext === 'doc') mime = 'application/msword';
+          else mime = 'image/jpeg';
+        }
+
         try {
           const buffer = await file.arrayBuffer();
-          const mime = file.type || 'image/jpeg';
           const safeBlob = new Blob([buffer], { type: mime });
           const safeFile = new File([safeBlob], file.name, { type: mime });
           return {
@@ -176,7 +184,7 @@ export default function StudentTaskDetails() {
     );
 
     setEvidences((prev) => [...prev, ...newItems]);
-    toast.success(`${newItems.length} ta rasm qo'shildi`);
+    toast.success(`${newItems.length} ta fayl qo'shildi`);
   };
 
   const handleRemoveEvidence = (id: string) => {
@@ -223,7 +231,15 @@ export default function StudentTaskDetails() {
           const rawExt = item.name.split('.').pop() || 'jpg';
           const fileExt = rawExt.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'jpg';
           const fileName = `${userId}/${taskId}/${Date.now()}_${i}.${fileExt}`;
-          const mimeType = item.file.type || 'image/jpeg';
+          const mimeType = item.file.type || (
+            fileExt === 'pdf' 
+              ? 'application/pdf' 
+              : fileExt === 'docx' 
+              ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+              : fileExt === 'doc' 
+              ? 'application/msword' 
+              : 'image/jpeg'
+          );
 
           let uploaded = false;
 
@@ -371,7 +387,7 @@ export default function StudentTaskDetails() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         multiple
         className="hidden"
         onChange={(e) => {
@@ -602,10 +618,10 @@ export default function StudentTaskDetails() {
         <div className="bg-white rounded-3xl p-5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <ImageIcon className="w-5 h-5 text-blue-600" />
+              <Paperclip className="w-5 h-5 text-blue-600" />
               <h3 className="font-bold text-slate-900 text-[14px]">Biriktirilgan dalillar</h3>
             </div>
-            <span className="text-[12px] font-bold text-blue-600">{evidences.length} / 4 ta rasm</span>
+            <span className="text-[12px] font-bold text-blue-600">{evidences.length} / 4 ta fayl</span>
           </div>
 
           {/* Evidence Grid or Empty State */}
@@ -614,41 +630,59 @@ export default function StudentTaskDetails() {
               onClick={() => fileInputRef.current?.click()}
               className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center cursor-pointer hover:border-[#00A87A]/50 transition-colors mb-4 bg-slate-50/50"
             >
-              <ImageIcon className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+              <Paperclip className="w-8 h-8 text-slate-400 mx-auto mb-2" />
               <p className="text-[13px] font-bold text-slate-600">Hozircha dalillar biriktirilmagan</p>
-              <p className="text-[11px] text-slate-400 mt-1">Kameradan suratga oling yoki galereyadan rasm tanlang (maks. 4 ta)</p>
+              <p className="text-[11px] text-slate-400 mt-1">Kameradan suratga oling yoki rasm, PDF, Word fayllarini tanlang (maks. 4 ta)</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 mb-4">
-              {evidences.map((item) => (
-                <div key={item.id} className="relative h-28 rounded-2xl overflow-hidden group border border-slate-100 shadow-sm bg-slate-100">
-                  <img src={item.url} className="w-full h-full object-cover" alt={item.name} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-                  
-                  {/* Delete Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveEvidence(item.id);
-                    }}
-                    className="absolute top-2 right-2 w-7 h-7 bg-black/60 hover:bg-red-500 backdrop-blur-md rounded-full text-white flex items-center justify-center transition-colors z-10"
-                    title="O'chirish"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+              {evidences.map((item) => {
+                const lowerName = item.name.toLowerCase();
+                const isPdf = lowerName.endsWith('.pdf');
+                const isWord = lowerName.endsWith('.doc') || lowerName.endsWith('.docx');
+                const isDoc = isPdf || isWord;
 
-                  <div className="absolute bottom-2 left-2 right-2 text-white">
-                    <div className="text-[10px] font-bold truncate" title={item.name}>{item.name}</div>
-                    <div className="flex items-center justify-between mt-0.5">
-                      <span className="text-[9px] text-white/70">{item.size}</span>
-                      <div className="flex items-center gap-1 text-[9px] text-[#5CE3A1]">
-                        <CheckCircle2 className="w-3 h-3" /> Tayyor
+                return (
+                  <div key={item.id} className="relative h-28 rounded-2xl overflow-hidden group border border-slate-100 shadow-sm bg-slate-100">
+                    {!isDoc ? (
+                      <img src={item.url} className="w-full h-full object-cover" alt={item.name} />
+                    ) : (
+                      <div className={`w-full h-full flex flex-col items-center justify-center p-2 text-center ${
+                        isPdf ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'
+                      }`}>
+                        <FileText className={`w-8 h-8 mb-1 ${isPdf ? 'text-red-500' : 'text-blue-500'}`} />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">
+                          {isPdf ? 'PDF HUJJAT' : 'WORD HUJJAT'}
+                        </span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none"></div>
+                    
+                    {/* Delete Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveEvidence(item.id);
+                      }}
+                      className="absolute top-2 right-2 w-7 h-7 bg-black/60 hover:bg-red-500 backdrop-blur-md rounded-full text-white flex items-center justify-center transition-colors z-10"
+                      title="O'chirish"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+
+                    <div className="absolute bottom-2 left-2 right-2 text-white">
+                      <div className="text-[10px] font-bold truncate" title={item.name}>{item.name}</div>
+                      <div className="flex items-center justify-between mt-0.5">
+                        <span className="text-[9px] text-white/70">{item.size}</span>
+                        <div className="flex items-center gap-1 text-[9px] text-[#5CE3A1]">
+                          <CheckCircle2 className="w-3 h-3" /> Tayyor
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -666,10 +700,10 @@ export default function StudentTaskDetails() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={evidences.length >= 4}
-              className="w-14 bg-slate-100 hover:bg-slate-200 active:scale-[0.98] disabled:opacity-50 text-slate-700 rounded-xl flex items-center justify-center transition-all"
-              title="Galereyadan tanlash"
+              className="flex-1 bg-slate-100 hover:bg-slate-200 active:scale-[0.98] disabled:opacity-50 text-slate-700 py-3 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 transition-all"
+              title="Galereya yoki Hujjat tanlash"
             >
-              <Paperclip className="w-4 h-4" />
+              <Paperclip className="w-4 h-4" /> Fayl biriktirish
             </button>
           </div>
         </div>
