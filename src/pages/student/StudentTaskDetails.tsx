@@ -136,7 +136,7 @@ export default function StudentTaskDetails() {
     }
   };
 
-  const handleFilesSelected = (files: FileList | null) => {
+  const handleFilesSelected = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
     const remainingSlots = 4 - evidences.length;
@@ -146,16 +146,37 @@ export default function StudentTaskDetails() {
     }
 
     const filesArray = Array.from(files).slice(0, remainingSlots);
-    const newItems: EvidenceItem[] = filesArray.map((file) => ({
-      id: Math.random().toString(36).substring(2, 9),
-      file,
-      url: URL.createObjectURL(file),
-      name: file.name,
-      size: formatFileSize(file.size),
-    }));
+    
+    // Mobil qurilmalarda (Android/Telegram) fayl oqimi yopilib qolmasligi uchun
+    // fayl baytlarini darhol xotiraga (ArrayBuffer/Blob) o'qib olamiz
+    const newItems: EvidenceItem[] = await Promise.all(
+      filesArray.map(async (file) => {
+        try {
+          const buffer = await file.arrayBuffer();
+          const mime = file.type || 'image/jpeg';
+          const safeBlob = new Blob([buffer], { type: mime });
+          const safeFile = new File([safeBlob], file.name, { type: mime });
+          return {
+            id: Math.random().toString(36).substring(2, 9),
+            file: safeFile,
+            url: URL.createObjectURL(safeBlob),
+            name: file.name,
+            size: formatFileSize(file.size),
+          };
+        } catch {
+          return {
+            id: Math.random().toString(36).substring(2, 9),
+            file,
+            url: URL.createObjectURL(file),
+            name: file.name,
+            size: formatFileSize(file.size),
+          };
+        }
+      })
+    );
 
     setEvidences((prev) => [...prev, ...newItems]);
-    toast.success(`${filesArray.length} ta rasm qo'shildi`);
+    toast.success(`${newItems.length} ta rasm qo'shildi`);
   };
 
   const handleRemoveEvidence = (id: string) => {
@@ -199,35 +220,61 @@ export default function StudentTaskDetails() {
       for (let i = 0; i < evidences.length; i++) {
         const item = evidences[i];
         if (item.file) {
-          const fileExt = item.file.name.split('.').pop() || 'jpg';
+          const rawExt = item.name.split('.').pop() || 'jpg';
+          const fileExt = rawExt.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'jpg';
           const fileName = `${userId}/${taskId}/${Date.now()}_${i}.${fileExt}`;
+          const mimeType = item.file.type || 'image/jpeg';
 
-          // Try uploading to 'answers' bucket, fallback to 'tasks' if needed
-          let { error: uploadError } = await supabase.storage
-            .from('answers')
-            .upload(fileName, item.file, { upsert: true });
+          let uploaded = false;
 
-          let bucketName = 'answers';
-          if (uploadError) {
-            console.warn("Upload to answers bucket failed, trying tasks bucket:", uploadError);
-            const { error: tasksBucketError } = await supabase.storage
-              .from('tasks')
-              .upload(fileName, item.file, { upsert: true });
-            
-            if (!tasksBucketError) {
-              uploadError = null;
-              bucketName = 'tasks';
+          // 1-urinish: 'answers' storage bucket'iga yuklash
+          try {
+            const { data, error: answersError } = await supabase.storage
+              .from('answers')
+              .upload(fileName, item.file, {
+                contentType: mimeType,
+                upsert: false,
+              });
+
+            if (!answersError && data) {
+              const { data: urlData } = supabase.storage
+                .from('answers')
+                .getPublicUrl(fileName);
+              uploadedUrls.push(urlData.publicUrl);
+              uploaded = true;
+            } else if (answersError) {
+              console.warn("Answers bucket upload warning:", answersError);
+            }
+          } catch (storageErr) {
+            console.warn("Answers bucket upload exception:", storageErr);
+          }
+
+          // 2-urinish: agar answers bo'lmasa, 'tasks' bucket'iga yuklab ko'rish
+          if (!uploaded) {
+            try {
+              const { data, error: tasksError } = await supabase.storage
+                .from('tasks')
+                .upload(fileName, item.file, {
+                  contentType: mimeType,
+                  upsert: false,
+                });
+
+              if (!tasksError && data) {
+                const { data: urlData } = supabase.storage
+                  .from('tasks')
+                  .getPublicUrl(fileName);
+                uploadedUrls.push(urlData.publicUrl);
+                uploaded = true;
+              } else if (tasksError) {
+                console.warn("Tasks bucket fallback error:", tasksError);
+              }
+            } catch (tasksStorageErr) {
+              console.warn("Tasks bucket fallback exception:", tasksStorageErr);
             }
           }
 
-          if (uploadError) {
-            console.error("Storage upload error:", uploadError);
-            toast.error(`Rasm yuklashda xatolik: ${uploadError.message}`);
-          } else {
-            const { data: urlData } = supabase.storage
-              .from(bucketName)
-              .getPublicUrl(fileName);
-            uploadedUrls.push(urlData.publicUrl);
+          if (!uploaded) {
+            console.warn(`"${item.name}" fayli storage'ga yuklanmadi, ammo matn saqlanadi.`);
           }
         } else if (item.url) {
           uploadedUrls.push(item.url);
@@ -255,7 +302,19 @@ export default function StudentTaskDetails() {
         const { error } = await supabase
           .from('answers')
           .insert(payload);
-        if (error) throw error;
+        if (error) {
+          // Agar 409 unique constraint (avval javob berilgan bo'lsa), yangilashga o'tkazish
+          if (error.code === '23505') {
+            const { error: updateErr } = await supabase
+              .from('answers')
+              .update(payload)
+              .eq('task_id', taskId)
+              .eq('user_id', userId);
+            if (updateErr) throw updateErr;
+          } else {
+            throw error;
+          }
+        }
       }
 
       toast.success(existingAnswer ? "Javobingiz yangilandi!" : "Vazifa muvaffaqiyatli topshirildi!");
@@ -264,7 +323,10 @@ export default function StudentTaskDetails() {
       }, 1000);
     } catch (err: any) {
       console.error("Submit error:", err);
-      toast.error("Xatolik yuz berdi: " + (err.message || "Yuklab bo'lmadi"));
+      const msg = err.message === 'Failed to fetch'
+        ? "Tarmoq bilan aloqa uzildi. Internetni tekshirib qayta urinib ko'ring."
+        : (err.message || "Yuklab bo'lmadi");
+      toast.error("Xatolik yuz berdi: " + msg);
     } finally {
       setSubmitting(false);
     }

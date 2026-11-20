@@ -46,3 +46,11 @@ USING ( bucket_id = 'answers' );
 CREATE POLICY "Public Upload Answers"
 ON storage.objects FOR INSERT
 WITH CHECK ( bucket_id = 'answers' );
+
+CREATE POLICY "Public Update Answers"
+ON storage.objects FOR UPDATE
+USING ( bucket_id = 'answers' );
+
+CREATE POLICY "Public Delete Answers"
+ON storage.objects FOR DELETE
+USING ( bucket_id = 'answers' );
