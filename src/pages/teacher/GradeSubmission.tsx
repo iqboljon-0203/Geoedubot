@@ -26,6 +26,12 @@ interface Answer {
   };
 }
 
+const getFullUrl = (url: string) => {
+  const trimmed = url.trim();
+  if (trimmed.startsWith('http')) return trimmed;
+  return supabase.storage.from('answers').getPublicUrl(trimmed).data.publicUrl;
+};
+
 export const GradeSubmission = () => {
   const navigate = useNavigate();
   const { answerId } = useParams<{ answerId: string }>();
@@ -204,81 +210,73 @@ export const GradeSubmission = () => {
                 {t('grading.submitted_file')}
               </h2>
               {answer.file_url ? (
-                (() => {
-                  const getFullUrl = (url: string) => {
-                    const trimmed = url.trim();
-                    if (trimmed.startsWith('http')) return trimmed;
-                    return supabase.storage.from('answers').getPublicUrl(trimmed).data.publicUrl;
-                  };
-
-                  return (
-                    <div className="space-y-4">
-                      {/* File Type Detection */}
-                      {answer.file_url.includes(',') ? (
-                        <div className="grid grid-cols-2 gap-3">
-                          {answer.file_url.split(',').map((url, idx) => {
-                            const fullUrl = getFullUrl(url);
-                            return (
-                              <div 
-                                key={idx} 
-                                className="rounded-2xl overflow-hidden border border-border cursor-pointer hover:opacity-90 transition-opacity bg-muted/20"
-                                onClick={() => window.open(fullUrl, '_blank')}
-                              >
-                                <img
-                                  src={fullUrl}
-                                  alt={`Dalil ${idx + 1}`}
-                                  className="w-full h-36 object-cover"
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : answer.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                        <div className="rounded-2xl overflow-hidden border border-border">
-                          <img
-                            src={getFullUrl(answer.file_url)}
-                            alt={t('grading.submitted_file')}
-                            className="w-full h-auto cursor-pointer"
-                            onClick={() => window.open(getFullUrl(answer.file_url!), '_blank')}
-                          />
-                        </div>
-                      ) : answer.file_url.match(/\.pdf$/i) ? (
-                        <div className="aspect-[3/4] rounded-2xl overflow-hidden border border-border">
-                          <iframe
-                            src={getFullUrl(answer.file_url)}
-                            className="w-full h-full"
-                            title="PDF Preview"
-                          />
-                        </div>
-                      ) : (
-                        <div className="p-8 rounded-2xl border-2 border-dashed border-border text-center">
-                          <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" aria-hidden="true" />
-                          <p className="text-sm text-muted-foreground mb-4">
-                            {t('grading.preview_not_available')}
-                          </p>
-                          <Button
-                            variant="outline"
-                            onClick={() => window.open(getFullUrl(answer.file_url!), '_blank')}
-                            className="rounded-xl"
+                <div className="space-y-4">
+                  {/* File Type Detection */}
+                  {answer.file_url.includes(',') ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      {answer.file_url.split(',').map((url, idx) => {
+                        const fullUrl = getFullUrl(url);
+                        return (
+                          <div 
+                            key={idx} 
+                            className="rounded-2xl overflow-hidden border border-border cursor-pointer hover:opacity-90 transition-opacity bg-muted/20"
+                            onClick={() => window.open(fullUrl, '_blank')}
                           >
-                            {t('grading.open_file')}
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* Download Button */}
+                            <img
+                              src={fullUrl}
+                              alt={`Dalil ${idx + 1}`}
+                              className="w-full h-36 object-cover"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : answer.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                    <div className="rounded-2xl overflow-hidden border border-border">
+                      <img
+                        src={getFullUrl(answer.file_url)}
+                        alt={t('grading.submitted_file')}
+                        className="w-full h-auto cursor-pointer"
+                        onClick={() => window.open(getFullUrl(answer.file_url!), '_blank')}
+                      />
+                    </div>
+                  ) : answer.file_url.match(/\.pdf$/i) ? (
+                    <div className="aspect-[3/4] rounded-2xl overflow-hidden border border-border">
+                      <iframe
+                        src={getFullUrl(answer.file_url)}
+                        className="w-full h-full"
+                        title="PDF Preview"
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-8 rounded-2xl border-2 border-dashed border-border text-center">
+                      <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" aria-hidden="true" />
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {t('grading.preview_not_available')}
+                      </p>
                       <Button
                         variant="outline"
                         onClick={() => window.open(getFullUrl(answer.file_url!), '_blank')}
-                        className="w-full rounded-xl"
+                        className="rounded-xl"
                       >
-                        <svg
-                          className="w-5 h-5 mr-2"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                        >
+                        {t('grading.open_file')}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Download Button */}
+                  <Button
+                    variant="outline"
+                    onClick={() => window.open(getFullUrl(answer.file_url!), '_blank')}
+                    className="w-full rounded-xl"
+                  >
+                    <svg
+                      className="w-5 h-5 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
