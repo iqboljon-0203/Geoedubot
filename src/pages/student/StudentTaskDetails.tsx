@@ -1,9 +1,34 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
-import { ArrowLeft, Clock, MapPin, Loader2, Navigation, CheckCircle2, Image as ImageIcon, Camera, Paperclip, X } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  Clock, 
+  MapPin, 
+  Loader2, 
+  Navigation, 
+  CheckCircle2, 
+  Image as ImageIcon, 
+  Camera, 
+  Paperclip, 
+  X,
+  FileText,
+  ExternalLink,
+  RefreshCw,
+  AlertCircle
+} from 'lucide-react';
+import { SubmissionMap } from '@/components/maps/SubmissionMap';
+import { calculateDistance } from '@/utils/location';
+
+interface EvidenceItem {
+  id: string;
+  file?: File;
+  url: string;
+  name: string;
+  size: string;
+}
 
 export default function StudentTaskDetails() {
   const { taskId } = useParams();
@@ -14,21 +39,96 @@ export default function StudentTaskDetails() {
   const [loading, setLoading] = useState(true);
   const [reportText, setReportText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [existingAnswer, setExistingAnswer] = useState<any>(null);
+  const [evidences, setEvidences] = useState<EvidenceItem[]>([]);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Format file size helper
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  // Get user GPS position
+  const requestLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Brauzeringizda geolokatsiya qo'llab-quvvatlanmaydi.");
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        });
+        setIsLocating(false);
+      },
+      (err) => {
+        console.warn("GPS error:", err);
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
+  useEffect(() => {
+    requestLocation();
+  }, []);
 
   useEffect(() => {
     fetchTaskDetails();
-  }, [taskId]);
+  }, [taskId, userId]);
 
   const fetchTaskDetails = async () => {
     if (!taskId) return;
     try {
       const { data: taskData, error: taskError } = await supabase
         .from('tasks')
-        .select(`*, groups (name, lat, lng), profiles:created_by (full_name, avatar)`)
+        .select(`*, groups (name, lat, lng, address), profiles:created_by (full_name, avatar)`)
         .eq('id', taskId)
         .single();
+        
       if (taskError) throw taskError;
       setTask(taskData);
+
+      // Check for existing answer
+      if (userId) {
+        const { data: answerData } = await supabase
+          .from('answers')
+          .select('*')
+          .eq('task_id', taskId)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (answerData) {
+          setExistingAnswer(answerData);
+          if (answerData.description) {
+            setReportText(answerData.description);
+          }
+          if (answerData.file_url) {
+            const urls = answerData.file_url.split(',').map((u: string) => u.trim()).filter(Boolean);
+            const loaded: EvidenceItem[] = urls.map((rawUrl: string, idx: number) => {
+              const url = rawUrl.startsWith('http') 
+                ? rawUrl 
+                : supabase.storage.from('answers').getPublicUrl(rawUrl).data.publicUrl;
+              const name = url.split('/').pop()?.split('?')[0] || `Fayl_${idx + 1}.jpg`;
+              return {
+                id: `existing_${idx}`,
+                url,
+                name,
+                size: 'Yuklangan',
+              };
+            });
+            setEvidences(loaded);
+          }
+        }
+      }
     } catch (error) {
       console.error('Error fetching task:', error);
     } finally {
@@ -36,18 +136,138 @@ export default function StudentTaskDetails() {
     }
   };
 
-  const handleSubmit = async () => {
-    if (reportText.length < 50) {
-      toast.error("Hisobot kamida 50 ta so'zdan iborat bo'lishi tavsiya etiladi.");
+  const handleFilesSelected = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const remainingSlots = 4 - evidences.length;
+    if (remainingSlots <= 0) {
+      toast.error("Maksimal 4 tagacha rasm biriktirish mumkin.");
       return;
     }
+
+    const filesArray = Array.from(files).slice(0, remainingSlots);
+    const newItems: EvidenceItem[] = filesArray.map((file) => ({
+      id: Math.random().toString(36).substring(2, 9),
+      file,
+      url: URL.createObjectURL(file),
+      name: file.name,
+      size: formatFileSize(file.size),
+    }));
+
+    setEvidences((prev) => [...prev, ...newItems]);
+    toast.success(`${filesArray.length} ta rasm qo'shildi`);
+  };
+
+  const handleRemoveEvidence = (id: string) => {
+    setEvidences((prev) => {
+      const item = prev.find((e) => e.id === id);
+      if (item && item.url.startsWith('blob:')) {
+        URL.revokeObjectURL(item.url);
+      }
+      return prev.filter((e) => e.id !== id);
+    });
+  };
+
+  const handleSubmit = async () => {
+    if (!reportText.trim()) {
+      toast.error("Iltimos, hisobot yoki javobingizni kiriting.");
+      return;
+    }
+
+    if (!userId) {
+      toast.error("Foydalanuvchi ma'lumotlari topilmadi. Qayta kiring.");
+      return;
+    }
+
+    // Geo-amaliyot va majburiy geo tekshiruvi
+    if (task.type === 'internship' && task.mandatory_geo && groupLocation) {
+      if (!userLocation) {
+        toast.error("Geo-tasdiqlash majburiy! Iltimos, GPS joylashuvni aniqlang.");
+        return;
+      }
+      if (distMeters !== null && !isWithinRadius) {
+        toast.error(`Geo-tasdiqlash majburiy! Siz belgilangan hudud ichida emassiz (Masofa: ${distMeters < 1000 ? distMeters + ' m' : distKm?.toFixed(2) + ' km'}, ruxsat: ${(radiusMeters / 1000).toFixed(1)} km).`);
+        return;
+      }
+    }
+
     setSubmitting(true);
-    // Simulation of submit
-    setTimeout(() => {
-      toast.success("Vazifa muvaffaqiyatli topshirildi!");
+
+    try {
+      const uploadedUrls: string[] = [];
+
+      for (let i = 0; i < evidences.length; i++) {
+        const item = evidences[i];
+        if (item.file) {
+          const fileExt = item.file.name.split('.').pop() || 'jpg';
+          const fileName = `${userId}/${taskId}/${Date.now()}_${i}.${fileExt}`;
+
+          // Try uploading to 'answers' bucket, fallback to 'tasks' if needed
+          let { error: uploadError } = await supabase.storage
+            .from('answers')
+            .upload(fileName, item.file, { upsert: true });
+
+          let bucketName = 'answers';
+          if (uploadError) {
+            console.warn("Upload to answers bucket failed, trying tasks bucket:", uploadError);
+            const { error: tasksBucketError } = await supabase.storage
+              .from('tasks')
+              .upload(fileName, item.file, { upsert: true });
+            
+            if (!tasksBucketError) {
+              uploadError = null;
+              bucketName = 'tasks';
+            }
+          }
+
+          if (uploadError) {
+            console.error("Storage upload error:", uploadError);
+            toast.error(`Rasm yuklashda xatolik: ${uploadError.message}`);
+          } else {
+            const { data: urlData } = supabase.storage
+              .from(bucketName)
+              .getPublicUrl(fileName);
+            uploadedUrls.push(urlData.publicUrl);
+          }
+        } else if (item.url) {
+          uploadedUrls.push(item.url);
+        }
+      }
+
+      const fileUrlToSave = uploadedUrls.length > 0 ? uploadedUrls.join(',') : null;
+
+      const payload = {
+        task_id: taskId,
+        user_id: userId,
+        description: reportText.trim(),
+        file_url: fileUrlToSave,
+        location_lat: userLocation?.lat || null,
+        location_lng: userLocation?.lng || null,
+      };
+
+      if (existingAnswer) {
+        const { error } = await supabase
+          .from('answers')
+          .update(payload)
+          .eq('id', existingAnswer.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('answers')
+          .insert(payload);
+        if (error) throw error;
+      }
+
+      toast.success(existingAnswer ? "Javobingiz yangilandi!" : "Vazifa muvaffaqiyatli topshirildi!");
+      setTimeout(() => {
+        navigate(-1);
+      }, 1000);
+    } catch (err: any) {
+      console.error("Submit error:", err);
+      toast.error("Xatolik yuz berdi: " + (err.message || "Yuklab bo'lmadi"));
+    } finally {
       setSubmitting(false);
-      navigate(-1);
-    }, 1500);
+    }
   };
 
   if (loading) {
@@ -58,28 +278,69 @@ export default function StudentTaskDetails() {
     );
   }
 
-  if (!task) return <div className="p-8 text-center">Vazifa topilmadi</div>;
+  if (!task) return <div className="p-8 text-center text-slate-500">Vazifa topilmadi</div>;
+
+  const deadlineDate = task.deadline || task.date;
+  const groupLocation = (task?.groups?.lat && task?.groups?.lng) 
+    ? { lat: task.groups.lat, lng: task.groups.lng } 
+    : null;
+  const radiusMeters = (task?.radius || 1.5) * 1000;
+  const distKm = (userLocation && groupLocation) 
+    ? calculateDistance(userLocation.lat, userLocation.lng, groupLocation.lat, groupLocation.lng) 
+    : null;
+  const distMeters = distKm !== null ? Math.round(distKm * 1000) : null;
+  const isWithinRadius = distMeters !== null ? distMeters <= radiusMeters : true;
 
   return (
-    <div className="bg-[#F8FAFC] min-h-screen font-['Outfit'] pb-32">
+    <div className="bg-[#F8FAFC] min-h-screen font-['Outfit'] pb-36">
       
+      {/* Hidden file inputs for Camera and Gallery */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          handleFilesSelected(e.target.files);
+          e.target.value = '';
+        }}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          handleFilesSelected(e.target.files);
+          e.target.value = '';
+        }}
+      />
+
       {/* Header */}
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-100">
         <div className="px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center hover:bg-slate-100">
+            <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center hover:bg-slate-100 transition-colors">
               <ArrowLeft className="w-5 h-5 text-slate-700" />
             </button>
             <div>
               <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-0.5">
-                {task.type === 'internship' ? "Amaliy mashg'ulot" : "Uyga vazifa"}
+                {task.type === 'internship' ? "Geo-amaliyot" : "Uyga vazifa"}
               </p>
               <h1 className="text-[17px] font-bold text-slate-900 leading-tight">Topshiriq #{taskId?.slice(0, 4) || '104'}</h1>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 bg-blue-50 px-3 py-1.5 rounded-full text-[11px] font-bold text-blue-600">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-            Jarayonda
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold ${
+            existingAnswer 
+              ? 'bg-emerald-50 text-emerald-700' 
+              : 'bg-blue-50 text-blue-600'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${
+              existingAnswer ? 'bg-emerald-500' : 'bg-blue-600'
+            }`}></span>
+            {existingAnswer ? 'Topshirilgan' : 'Jarayonda'}
           </div>
         </div>
       </header>
@@ -89,10 +350,10 @@ export default function StudentTaskDetails() {
         {/* Badges */}
         <div className="flex gap-2">
           <span className="bg-[#5CE3A1] text-[#006644] text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide">
-            Biogeografiya
+            {task.type === 'internship' ? "Geo-tadqiqot" : "Nazariy"}
           </span>
           <span className="bg-slate-200 text-slate-700 text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide">
-            {task.groups?.name || 'GEO-202'}
+            {task.groups?.name || 'Guruh'}
           </span>
         </div>
 
@@ -105,53 +366,65 @@ export default function StudentTaskDetails() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {task.profiles?.avatar ? (
-               <img src={task.profiles.avatar} className="w-8 h-8 rounded-full" alt="avatar" />
+               <img src={task.profiles.avatar} className="w-8 h-8 rounded-full object-cover" alt="avatar" />
             ) : (
-               <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
-                 <img src="https://ui-avatars.com/api/?name=MK&background=c7d2fe&color=4f46e5" className="w-8 h-8 rounded-full" alt="avatar" />
+               <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs">
+                 {task.profiles?.full_name?.slice(0, 2)?.toUpperCase() || 'US'}
                </div>
             )}
-            <span className="text-sm font-semibold text-slate-700">{task.profiles?.full_name || 'Ustoz'}</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#006C4A]">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            24 talaba
+            <span className="text-sm font-semibold text-slate-700">{task.profiles?.full_name || "O'qituvchi"}</span>
           </div>
         </div>
 
         {/* Deadline Block */}
-        <div className="bg-red-50/80 rounded-2xl p-4 flex items-center justify-between border border-red-100/50 relative overflow-hidden">
-          <div className="absolute -right-4 -bottom-4 opacity-5">
-            <Clock className="w-24 h-24 text-red-500" />
-          </div>
-          <div className="flex items-center gap-3 relative z-10">
-            <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center">
-              <Clock className="w-5 h-5 text-red-500" />
+        {deadlineDate && (
+          <div className="bg-red-50/80 rounded-2xl p-4 flex items-center justify-between border border-red-100/50 relative overflow-hidden">
+            <div className="flex items-center gap-3 relative z-10">
+              <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center">
+                <Clock className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <div className="text-[13px] font-bold text-red-700">
+                  Muddati: {new Date(deadlineDate).toLocaleDateString('uz-UZ', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </div>
+                <div className="text-[11px] text-red-500 font-medium mt-0.5">Topshiriq muddati belgilangan</div>
+              </div>
             </div>
-            <div>
-              <div className="text-[13px] font-bold text-red-700">Muddati: Bugun, 23:59 gacha</div>
-              <div className="text-[11px] text-red-500 font-medium mt-0.5">Qolgan vaqt: 4 soat 20 daqiqa</div>
-            </div>
           </div>
-          <div className="text-red-600 font-bold text-[15px] relative z-10 bg-white/50 px-2.5 py-1 rounded-lg">
-            04:20:18
-          </div>
-        </div>
+        )}
 
         {/* Instructions */}
         <div className="bg-white rounded-2xl p-5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-6 h-6 rounded-lg bg-green-50 flex items-center justify-center">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#00A87A]"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>
+              <FileText className="w-4 h-4 text-[#00A87A]" />
             </div>
             <h3 className="text-[13px] font-bold text-[#00A87A]">Vazifa yo'riqnomasi</h3>
           </div>
-          <p className="text-[14px] text-slate-600 leading-relaxed">
-            {task.description}
+          <p className="text-[14px] text-slate-600 leading-relaxed whitespace-pre-wrap">
+            {task.description || "Yo'riqnoma mavjud emas."}
           </p>
+
+          {/* Teacher's Attachment */}
+          {task.file_url && (
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <a
+                href={task.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors text-slate-700"
+              >
+                <div className="flex items-center gap-2.5 truncate">
+                  <Paperclip className="w-4 h-4 text-[#00A87A] flex-shrink-0" />
+                  <span className="text-[12px] font-bold truncate">O'qituvchi biriktirgan fayl</span>
+                </div>
+                <ExternalLink className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              </a>
+            </div>
+          )}
         </div>
 
-        {/* Live Geo-verification */}
+        {/* Live Geo-verification for internship */}
         {task.type === 'internship' && (
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -159,50 +432,87 @@ export default function StudentTaskDetails() {
                 <Navigation className="w-5 h-5 text-[#006C4A]" />
                 <h3 className="font-bold text-slate-900 text-[15px]">Jonli Geo-tasdiqlash</h3>
               </div>
-              <div className="bg-[#5CE3A1] text-[#006644] text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 uppercase">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#006644] animate-pulse"></span>
-                GPS Faol
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={requestLocation}
+                  disabled={isLocating}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors active:scale-95"
+                  title="GPS yangilash"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLocating ? 'animate-spin text-[#00A87A]' : ''}`} />
+                  GPS yangilash
+                </button>
+                <div className={`text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 uppercase ${
+                  userLocation ? 'bg-[#5CE3A1] text-[#006644]' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${userLocation ? 'bg-[#006644] animate-pulse' : 'bg-amber-600'}`}></span>
+                  {userLocation ? "GPS Faol" : "GPS Kutilmoqda"}
+                </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl p-2 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100">
-              {/* Map Placeholder */}
-              <div className="relative w-full h-48 rounded-2xl bg-[#E6EFFF] overflow-hidden flex items-center justify-center">
-                <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(#005FB8 1px, transparent 1px), linear-gradient(90deg, #005FB8 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-                
-                {/* Fake User Location */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                  <div className="relative flex flex-col items-center">
-                    <div className="bg-slate-900/80 backdrop-blur-sm text-white text-[10px] font-bold px-3 py-1.5 rounded-full mb-2 whitespace-nowrap">
-                      Siz (aniqlik ±3m)
-                    </div>
-                    <div className="w-32 h-32 rounded-full border border-[#005FB8]/40 bg-[#005FB8]/10 flex items-center justify-center absolute top-10">
-                       <div className="w-6 h-6 bg-[#005FB8] rounded-full border-4 border-white shadow-lg"></div>
-                    </div>
-                  </div>
-                </div>
+            <div className="bg-white rounded-3xl p-3 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 space-y-3">
+              {/* Real Interactive Map */}
+              <SubmissionMap 
+                userLocation={userLocation} 
+                groupLocation={groupLocation} 
+                radius={radiusMeters} 
+              />
 
-                <div className="absolute bottom-3 left-3 bg-white px-3 py-2 rounded-xl flex items-center gap-2 text-[12px] font-bold text-slate-700 shadow-sm">
-                  <MapPin className="w-4 h-4 text-[#00A87A]" />
-                  41.3456° N, 69.3142° E
-                  <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center ml-2 shadow-sm border border-slate-100">
-                    <Navigation className="w-4 h-4 text-slate-500" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Success Banner */}
-              <div className="mt-2 bg-[#E1F7EE] rounded-2xl p-4 flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#00A87A] text-white flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
+              {/* Status and distance indicator */}
+              {groupLocation ? (
                 <div>
-                  <h4 className="text-[14px] font-bold text-[#006C4A]">Siz ruxsat etilgan hududdasiz!</h4>
-                  <p className="text-[12px] text-[#00875A] mt-0.5 leading-snug">
-                    Markazgacha masofa: <strong>120 metr</strong>. Geo-joylashuv muvaffaqiyatli tasdiqlandi.
-                  </p>
+                  {userLocation ? (
+                    isWithinRadius ? (
+                      <div className="bg-[#E1F7EE] text-[#006C4A] p-3 rounded-2xl flex items-center gap-2.5">
+                        <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-[#00A87A]" />
+                        <div className="text-[12px]">
+                          <p className="font-bold text-[13px] leading-snug">Siz ruxsat etilgan hududdasiz!</p>
+                          <p className="opacity-90 text-[11px] mt-0.5">
+                            Mo'ljalgacha masofa: <strong>{distMeters! < 1000 ? `${distMeters} metr` : `${distKm?.toFixed(2)} km`}</strong> (Ruxsat: {(radiusMeters / 1000).toFixed(1)} km)
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-amber-50 border border-amber-200/60 text-amber-900 p-3 rounded-2xl flex items-center gap-2.5">
+                        <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600" />
+                        <div className="text-[12px]">
+                          <p className="font-bold text-[13px] text-amber-800 leading-snug">
+                            {task.mandatory_geo ? "Belgilangan hududdan tashqaridasiz!" : "Hududdan tashqaridasiz"}
+                          </p>
+                          <p className="text-amber-700 text-[11px] mt-0.5">
+                            Mo'ljalgacha masofa: <strong>{distMeters! < 1000 ? `${distMeters} m` : `${distKm?.toFixed(2)} km`}</strong> (Ruxsat: {(radiusMeters / 1000).toFixed(1)} km). 
+                            {task.mandatory_geo ? " Vazifa topshirish uchun belgilangan hududga kiring." : ""}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  ) : (
+                    <div className="bg-slate-50 border border-slate-200/60 p-3 rounded-2xl flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-slate-600 text-[12px]">
+                        <MapPin className="w-4 h-4 text-slate-400" />
+                        <span>GPS joylashuvingiz aniqlanmadi</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={requestLocation}
+                        className="text-[11px] font-bold text-blue-600 hover:underline"
+                      >
+                        Aniqlash
+                      </button>
+                    </div>
+                  )}
+
+                  {task.groups?.address && (
+                    <p className="text-[11px] text-slate-500 px-1 mt-2">
+                      Mo'ljal manzili: <span className="font-semibold text-slate-700">{task.groups.address}</span>
+                    </p>
+                  )}
                 </div>
-              </div>
+              ) : (
+                <p className="text-[11px] text-slate-400 p-2 text-center">Guruh uchun mo'ljal koordinatasi belgilanmagan</p>
+              )}
             </div>
           </div>
         )}
@@ -211,72 +521,92 @@ export default function StudentTaskDetails() {
         <div>
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-bold text-slate-900 text-[14px]">Kuzatuv va tahlil hisoboti</h3>
-            <span className="text-[11px] text-slate-400">Ixtiyoriy emas</span>
+            <span className="text-[11px] text-slate-400">Majburiy</span>
           </div>
           <textarea
             value={reportText}
             onChange={(e) => setReportText(e.target.value)}
-            placeholder="Botanika bog'i 3-sektoridagi o'simliklar tahlili, barg tuzilishi va tuproq namligi bo'yicha hisobotingizni kiriting..."
+            placeholder="Kuzatuv natijalari, tahlil va xulosalaringizni batafsil yozing..."
             rows={5}
-            className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-[14px] text-slate-700 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00A87A]/20 focus:border-[#00A87A] transition-all resize-none shadow-inner"
+            className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-[14px] text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#00A87A]/20 focus:border-[#00A87A] transition-all resize-none shadow-sm placeholder:text-slate-400"
           />
           <div className="flex justify-between items-center mt-2 px-1">
-            <span className="text-[11px] font-medium text-slate-500">Minimal tavsiya: 50 ta so'z</span>
+            <span className="text-[11px] font-medium text-slate-500">Batafsil ma'lumot qoldiring</span>
             <span className="text-[11px] font-bold text-slate-700">{reportText.length} belgi</span>
           </div>
         </div>
 
-        {/* Attachments */}
+        {/* Real Attachments (Dalillar) Section */}
         <div className="bg-white rounded-3xl p-5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <ImageIcon className="w-5 h-5 text-blue-600" />
               <h3 className="font-bold text-slate-900 text-[14px]">Biriktirilgan dalillar</h3>
             </div>
-            <span className="text-[12px] font-bold text-blue-600">2 / 4 ta rasm</span>
+            <span className="text-[12px] font-bold text-blue-600">{evidences.length} / 4 ta rasm</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            {/* Fake images */}
-            <div className="relative h-24 rounded-2xl overflow-hidden group">
-              <img src="https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?q=80&w=300&auto=format&fit=crop" className="w-full h-full object-cover" alt="leaf" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-              <button className="absolute top-2 right-2 w-6 h-6 bg-black/50 backdrop-blur-md rounded-full text-white flex items-center justify-center hover:bg-red-500 transition-colors">
-                <X className="w-3.5 h-3.5" />
-              </button>
-              <div className="absolute bottom-2 left-2 right-2 text-white">
-                <div className="text-[10px] font-bold truncate">Foto_sektor3_GPS.jpg</div>
-                <div className="flex items-center justify-between mt-0.5">
-                  <span className="text-[9px] text-white/70">3.4 MB</span>
-                  <div className="flex items-center gap-1 text-[9px] text-[#5CE3A1]">
-                    <CheckCircle2 className="w-3 h-3" /> Tasdiqlangan
-                  </div>
-                </div>
-              </div>
+          {/* Evidence Grid or Empty State */}
+          {evidences.length === 0 ? (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center cursor-pointer hover:border-[#00A87A]/50 transition-colors mb-4 bg-slate-50/50"
+            >
+              <ImageIcon className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+              <p className="text-[13px] font-bold text-slate-600">Hozircha dalillar biriktirilmagan</p>
+              <p className="text-[11px] text-slate-400 mt-1">Kameradan suratga oling yoki galereyadan rasm tanlang (maks. 4 ta)</p>
             </div>
-            <div className="relative h-24 rounded-2xl overflow-hidden group">
-              <img src="https://images.unsplash.com/photo-1423164478839-4467d58fbc83?q=80&w=300&auto=format&fit=crop" className="w-full h-full object-cover" alt="tree" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-              <button className="absolute top-2 right-2 w-6 h-6 bg-black/50 backdrop-blur-md rounded-full text-white flex items-center justify-center hover:bg-red-500 transition-colors">
-                <X className="w-3.5 h-3.5" />
-              </button>
-              <div className="absolute bottom-2 left-2 right-2 text-white">
-                <div className="text-[10px] font-bold truncate">Daraxt_turlari_02.jpg</div>
-                <div className="flex items-center justify-between mt-0.5">
-                  <span className="text-[9px] text-white/70">2.8 MB</span>
-                  <div className="flex items-center gap-1 text-[9px] text-[#5CE3A1]">
-                    <CheckCircle2 className="w-3 h-3" /> Tasdiqlangan
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {evidences.map((item) => (
+                <div key={item.id} className="relative h-28 rounded-2xl overflow-hidden group border border-slate-100 shadow-sm bg-slate-100">
+                  <img src={item.url} className="w-full h-full object-cover" alt={item.name} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                  
+                  {/* Delete Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveEvidence(item.id);
+                    }}
+                    className="absolute top-2 right-2 w-7 h-7 bg-black/60 hover:bg-red-500 backdrop-blur-md rounded-full text-white flex items-center justify-center transition-colors z-10"
+                    title="O'chirish"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
 
+                  <div className="absolute bottom-2 left-2 right-2 text-white">
+                    <div className="text-[10px] font-bold truncate" title={item.name}>{item.name}</div>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <span className="text-[9px] text-white/70">{item.size}</span>
+                      <div className="flex items-center gap-1 text-[9px] text-[#5CE3A1]">
+                        <CheckCircle2 className="w-3 h-3" /> Tayyor
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Action buttons */}
           <div className="flex gap-2">
-            <button className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 py-3 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 transition-colors">
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              disabled={evidences.length >= 4}
+              className="flex-1 bg-blue-50 hover:bg-blue-100 active:scale-[0.98] disabled:opacity-50 text-blue-700 py-3 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 transition-all"
+            >
               <Camera className="w-4 h-4" /> Kamera ochish
             </button>
-            <button className="w-12 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center transition-colors">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={evidences.length >= 4}
+              className="w-14 bg-slate-100 hover:bg-slate-200 active:scale-[0.98] disabled:opacity-50 text-slate-700 rounded-xl flex items-center justify-center transition-all"
+              title="Galereyadan tanlash"
+            >
               <Paperclip className="w-4 h-4" />
             </button>
           </div>
@@ -285,7 +615,7 @@ export default function StudentTaskDetails() {
       </div>
 
       {/* Bottom Sticky Action */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100 z-40 pb-safe">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-slate-100 z-40 pb-safe">
         <div className="max-w-xl mx-auto">
           <button
             onClick={handleSubmit}
@@ -293,16 +623,23 @@ export default function StudentTaskDetails() {
             className="w-full h-14 bg-[#006C4A] hover:bg-[#00573B] text-white rounded-2xl font-bold text-[15px] flex items-center justify-center gap-2 shadow-[0_8px_20px_rgba(0,108,74,0.3)] transition-all active:scale-[0.98] disabled:opacity-70"
           >
             {submitting ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Yuklanmoqda va yuborilmoqda...
+              </>
             ) : (
               <>
                 <CheckCircle2 className="w-5 h-5" />
-                Vazifani topshirish (Geo-tasdiqlangan)
+                {existingAnswer 
+                  ? "Javobni yangilash" 
+                  : (task.type === 'internship' ? "Vazifani topshirish (Geo-tasdiqlangan)" : "Vazifani topshirish")}
               </>
             )}
           </button>
-          <p className="text-center text-[10px] font-medium text-slate-500 mt-3">
-            GPS ma'lumotlari hisobot bilan birga o'qituvchiga yuboriladi
+          <p className="text-center text-[10px] font-medium text-slate-500 mt-2">
+            {task.type === 'internship' 
+              ? "GPS ma'lumotlari hisobot bilan birga o'qituvchiga yuboriladi" 
+              : "Javobingiz tekshirish uchun o'qituvchiga yuboriladi"}
           </p>
         </div>
       </div>

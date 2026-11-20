@@ -6,6 +6,7 @@ import { MapPin, Search, Crosshair, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 interface LocationMapPickerProps {
   initialLat?: number;
@@ -138,19 +139,25 @@ export const LocationMapPicker = ({
     if ('geolocation' in navigator) {
       setIsSearching(true);
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
           if (mapRef.current) {
             mapRef.current.flyTo([latitude, longitude], 16);
           }
+          setPosition(new LatLng(latitude, longitude));
+          getAddressFromCoords(latitude, longitude);
           setIsSearching(false);
+          toast.success("Hozirgi GPS joylashuvingiz aniqlandi");
         },
         (error) => {
           console.error('Geolocation error:', error);
           setIsSearching(false);
-          // Toast or helper text could be added here
-        }
+          toast.error("GPS joylashuvni aniqlab bo'lmadi. Geolokatsiyaga ruxsat berilganligini tekshiring.");
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
+    } else {
+      toast.error("Brauzeringizda geolokatsiya qo'llab-quvvatlanmaydi.");
     }
   };
 

@@ -30,7 +30,11 @@ export function getCurrentLocation(): Promise<GeolocationPosition> {
     if (!navigator.geolocation) {
       reject(new Error("Geolocation is not supported by your browser"));
     } else {
-      navigator.geolocation.getCurrentPosition(resolve, reject);
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      });
     }
   });
 }
