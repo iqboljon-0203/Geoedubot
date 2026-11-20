@@ -113,6 +113,8 @@ CREATE TABLE IF NOT EXISTS public.tasks (
   file_url TEXT,
   deadline DATE,  -- Uyga vazifa uchun
   date DATE,      -- Amaliyot uchun
+  radius DOUBLE PRECISION DEFAULT 1.5,
+  mandatory_geo BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

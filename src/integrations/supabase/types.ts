@@ -127,6 +127,8 @@ export interface Database {
           file_url: string | null
           deadline: string | null
           date: string | null
+          radius?: number | null
+          mandatory_geo?: boolean | null
           created_at: string
         }
         Insert: {
@@ -139,6 +141,8 @@ export interface Database {
           file_url?: string | null
           deadline?: string | null
           date?: string | null
+          radius?: number | null
+          mandatory_geo?: boolean | null
           created_at?: string
         }
         Update: {
@@ -151,6 +155,8 @@ export interface Database {
           file_url?: string | null
           deadline?: string | null
           date?: string | null
+          radius?: number | null
+          mandatory_geo?: boolean | null
           created_at?: string
         }
         Relationships: [

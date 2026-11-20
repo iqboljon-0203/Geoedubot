@@ -4,7 +4,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, BookOpen, Map, CheckCircle, Upload, Award, Users, Camera, ShieldCheck, Send } from "lucide-react";
+import { ArrowLeft, MapPin, BookOpen, Map, CheckCircle, Upload, Award, Users, Camera, ShieldCheck, Send, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Switch } from "@/components/ui/switch"; // Assuming this exists, if not we'll use a simple HTML checkbox
 
@@ -23,6 +23,7 @@ export default function AddTask() {
     mandatoryGeo: true
   });
   const [fileUploading, setFileUploading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchGroups = async () => {
@@ -54,23 +55,65 @@ export default function AddTask() {
       return;
     }
     
-    const payload = {
-      title: form.title,
-      description: form.description,
-      type: form.type as "homework" | "internship",
-      group_id: form.groupId,
-      created_by: userId || "",
-      deadline: form.deadline || null,
-      radius: form.radius,
-      mandatory_geo: form.mandatoryGeo
-    };
-    
-    const { error } = await supabase.from("tasks").insert([payload]);
-    if (error) {
-      toast.error("Xatolik yuz berdi: " + error.message);
-    } else {
-      toast.success("Vazifa muvaffaqiyatli qo'shildi!");
-      navigate("/teacher-dashboard/tasks");
+    if (!userId) {
+      toast.error("Foydalanuvchi ma'lumotlari topilmadi. Iltimos, qayta kiring.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const basePayload: any = {
+        title: form.title,
+        description: form.description,
+        type: form.type as "homework" | "internship",
+        group_id: form.groupId,
+        created_by: userId,
+        deadline: form.deadline || null,
+        date: form.type === "internship" ? (form.deadline || null) : null,
+      };
+
+      let insertError: any = null;
+
+      if (form.type === "internship") {
+        const geoPayload = {
+          ...basePayload,
+          radius: form.radius,
+          mandatory_geo: form.mandatoryGeo,
+        };
+
+        const { error } = await supabase.from("tasks").insert([geoPayload]);
+
+        // Agar jadvalda mandatory_geo yoki radius ustunlari bo'lmasa, ustunlarsiz qayta yozish
+        if (error) {
+          const isColumnMissing =
+            error.message?.includes("mandatory_geo") ||
+            error.message?.includes("radius") ||
+            error.message?.includes("schema cache");
+
+          if (isColumnMissing) {
+            const { error: retryError } = await supabase.from("tasks").insert([basePayload]);
+            insertError = retryError;
+          } else {
+            insertError = error;
+          }
+        }
+      } else {
+        // Oddiy vazifa uchun radius va mandatory_geo kerak emas
+        const { error } = await supabase.from("tasks").insert([basePayload]);
+        insertError = error;
+      }
+
+      if (insertError) {
+        toast.error("Xatolik yuz berdi: " + insertError.message);
+      } else {
+        toast.success("Vazifa muvaffaqiyatli qo'shildi!");
+        navigate("/teacher-dashboard/tasks");
+      }
+    } catch (err: any) {
+      toast.error("Kutilmagan xatolik yuz berdi: " + (err?.message || ""));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -285,10 +328,20 @@ export default function AddTask() {
         {/* Submit Button */}
         <button
           type="submit"
-          className="w-full h-14 bg-[#006C4A] hover:bg-[#00573B] text-white rounded-2xl font-bold text-[15px] flex items-center justify-center gap-2 shadow-[0_8px_20px_rgba(0,108,74,0.3)] transition-all active:scale-[0.98]"
+          disabled={isSubmitting}
+          className="w-full h-14 bg-[#006C4A] hover:bg-[#00573B] disabled:opacity-70 text-white rounded-2xl font-bold text-[15px] flex items-center justify-center gap-2 shadow-[0_8px_20px_rgba(0,108,74,0.3)] transition-all active:scale-[0.98]"
         >
-          <Send className="w-4 h-4" />
-          Topshiriqni e'lon qilish va yuborish
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Yuborilmoqda...
+            </>
+          ) : (
+            <>
+              <Send className="w-4 h-4" />
+              Topshiriqni e'lon qilish va yuborish
+            </>
+          )}
         </button>
       </form>
     </div>

@@ -69,8 +69,8 @@ const TeacherDashboard = () => {
           transition={{ delay: 0.4, duration: 0.5 }}
         >
           <QuickActions 
-            onAddTask={() => navigate('/teacher-dashboard/tasks/new')}
-            onAddGroup={() => navigate('/teacher-dashboard/groups/new')}
+            onAddTask={() => navigate('/teacher-dashboard/tasks/add')}
+            onAddGroup={() => navigate('/teacher-dashboard/groups')}
           />
         </motion.section>
 
