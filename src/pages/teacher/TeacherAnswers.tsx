@@ -14,12 +14,20 @@ interface Answer {
   id: string;
   student: string;
   group: string;
+  groupId?: string;
   task: string;
+  taskType?: string;
   submittedAt: string;
   fileUrl: string;
   score: number | null;
   description: string;
   teacher_comment: string;
+  locationLat?: number | null;
+  locationLng?: number | null;
+  schoolName?: string | null;
+  practiceLat?: number | null;
+  practiceLng?: number | null;
+  practiceAddress?: string | null;
 }
 
 export default function TeacherAnswers() {
@@ -156,6 +164,11 @@ export default function TeacherAnswers() {
                     <p className="text-sm text-muted-foreground truncate">
                       {answer.group} • {answer.task}
                     </p>
+                    {answer.schoolName && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md mt-1">
+                        🏫 {answer.schoolName}
+                      </span>
+                    )}
                     <p className="text-xs text-muted-foreground mt-1">
                       {t('grading.submitted')}: {answer.submittedAt}
                     </p>

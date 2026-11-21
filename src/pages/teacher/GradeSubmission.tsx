@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, FileText, Send, CheckCircle2, Loader2 } from 'lucide-react';
+import { ArrowLeft, FileText, Send, CheckCircle2, Loader2, MapPin, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
@@ -10,12 +10,15 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { calculateDistance } from '@/utils/location';
 
 interface Answer {
   id: string;
   user_id: string;
   task_id: string;
   file_url: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
   created_at: string;
   profiles: {
     full_name: string;
@@ -23,7 +26,15 @@ interface Answer {
   };
   tasks: {
     title: string;
+    group_id?: string;
+    type?: string;
   };
+  member?: {
+    school_name?: string | null;
+    practice_lat?: number | null;
+    practice_lng?: number | null;
+    practice_address?: string | null;
+  } | null;
 }
 
 const getFullUrl = (url: string) => {
@@ -61,7 +72,9 @@ export const GradeSubmission = () => {
             avatar_url
           ),
           tasks!task_id (
-            title
+            title,
+            group_id,
+            type
           )
         `
         )
@@ -69,6 +82,25 @@ export const GradeSubmission = () => {
         .single();
 
       if (error) throw error;
+
+      // Talabaning amaliyot maktabi ma'lumotlarini olish
+      if (data?.user_id && data?.tasks?.group_id) {
+        try {
+          const { data: memberData } = await supabase
+            .from('group_members')
+            .select('school_name, practice_lat, practice_lng, practice_address')
+            .eq('group_id', data.tasks.group_id)
+            .eq('user_id', data.user_id)
+            .maybeSingle();
+
+          if (memberData) {
+            (data as any).member = memberData;
+          }
+        } catch (memberErr) {
+          console.warn("Could not fetch practice school for submission:", memberErr);
+        }
+      }
+
       setAnswer(data as any);
 
       // Set initial score to middle value
@@ -204,6 +236,71 @@ export const GradeSubmission = () => {
                 </div>
               </div>
             </Card>
+
+            {/* Dual Education Practice School & GPS Card */}
+            {(() => {
+              const member = answer.member;
+              const distKm = (answer.location_lat && answer.location_lng && member?.practice_lat && member?.practice_lng)
+                ? calculateDistance(answer.location_lat, answer.location_lng, member.practice_lat, member.practice_lng)
+                : null;
+              const distMeters = distKm !== null ? Math.round(distKm * 1000) : null;
+
+              if (!member?.school_name && !answer.location_lat) return null;
+
+              return (
+                <Card className="p-5 bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200/60 dark:border-emerald-800/40 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                      <Building2 className="w-4 h-4 text-emerald-600" /> Amaliyot maktabi (Dual ta'lim)
+                    </span>
+                    {distMeters !== null && (
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                        distMeters <= 1500 
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300"
+                          : "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300"
+                      }`}>
+                        {distMeters <= 1500 ? "Hududdan topshirilgan ✅" : "Hududdan uzoqda ⚠️"}
+                      </span>
+                    )}
+                  </div>
+
+                  {member?.school_name && (
+                    <p className="text-sm font-bold text-foreground">
+                      🏫 {member.school_name}
+                    </p>
+                  )}
+
+                  {member?.practice_address && (
+                    <p className="text-xs text-muted-foreground">
+                      📍 {member.practice_address}
+                    </p>
+                  )}
+
+                  {distMeters !== null && (
+                    <p className="text-xs text-emerald-900 dark:text-emerald-200 font-medium">
+                      Maktabdan topshirish masofasi: <strong>{distMeters < 1000 ? `${distMeters} metr` : `${distKm?.toFixed(2)} km`}</strong>
+                    </p>
+                  )}
+
+                  {answer.location_lat && answer.location_lng && (
+                    <div className="pt-2 flex items-center justify-between text-xs border-t border-emerald-200/40">
+                      <span className="text-muted-foreground font-mono">
+                        GPS: {answer.location_lat.toFixed(5)}, {answer.location_lng.toFixed(5)}
+                      </span>
+                      <a
+                        href={`https://www.google.com/maps?q=${answer.location_lat},${answer.location_lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        <MapPin className="w-3.5 h-3.5" />
+                        Xaritada ko'rish ↗
+                      </a>
+                    </div>
+                  )}
+                </Card>
+              );
+            })()}
 
             {/* File Preview */}
             <Card className="p-6 bg-card border-border">

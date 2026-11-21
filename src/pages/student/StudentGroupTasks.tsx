@@ -1,21 +1,26 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useAuthStore } from "@/store/authStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Users, MapPin, Calendar as CalendarIcon, ArrowLeft, Clock, FileText } from "lucide-react";
+import { Users, MapPin, Calendar as CalendarIcon, ArrowLeft, Clock, FileText, Building2, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
+import { PracticeLocationModal } from "@/components/modals/PracticeLocationModal";
 
 export default function StudentGroupTasks() {
   const { groupId } = useParams();
   const navigate = useNavigate();
+  const { userId } = useAuthStore();
   const [group, setGroup] = useState<any>(null);
   const [teacher, setTeacher] = useState<any>(null);
   const [membersCount, setMembersCount] = useState<number>(0);
   const [tasks, setTasks] = useState<any[]>([]);
+  const [practiceLocation, setPracticeLocation] = useState<any>(null);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,6 +50,24 @@ export default function StudentGroupTasks() {
         .select("id", { count: "exact", head: true })
         .eq("group_id", groupId);
       setMembersCount(count || 0);
+
+      // Talabaning individual amaliyot maktabi (Dual ta'lim)
+      if (userId && groupId) {
+        try {
+          const { data: memberData } = await supabase
+            .from("group_members")
+            .select("id, school_name, practice_lat, practice_lng, practice_address")
+            .eq("group_id", groupId)
+            .eq("user_id", userId)
+            .maybeSingle();
+
+          if (memberData) {
+            setPracticeLocation(memberData);
+          }
+        } catch (mErr) {
+          console.warn("Could not load practice location:", mErr);
+        }
+      }
 
       // Tasklarni olish
       const { data: tasksData } = await supabase
@@ -173,6 +196,47 @@ export default function StudentGroupTasks() {
           </Card>
         </motion.div>
 
+        {/* Practice School Card (Dual ta'lim) */}
+        <Card className="rounded-3xl border-border bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
+                <Building2 className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                    Dual ta'lim: Amaliyot maktabi
+                  </span>
+                </div>
+                <h3 className="text-base font-bold text-foreground mt-0.5">
+                  {practiceLocation?.school_name || "Amaliyot maktabingiz hali kiritilmagan"}
+                </h3>
+                {practiceLocation?.practice_address ? (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    📍 {practiceLocation.practice_address}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Har bir talaba o'z tumanidagi maktabni biriktiradi
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsLocationModalOpen(true)}
+              className="rounded-xl font-semibold gap-1.5 h-10 border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 transition-colors flex-shrink-0"
+            >
+              <Edit3 className="w-4 h-4" />
+              <span>{practiceLocation?.practice_lat ? "Maktabni o'zgartirish" : "Maktabni biriktirish"}</span>
+            </Button>
+          </div>
+        </Card>
+
         {/* Tasks Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2">
@@ -242,6 +306,20 @@ export default function StudentGroupTasks() {
           )}
         </div>
       </div>
+
+      {/* Practice Location Modal (Dual Ta'lim) */}
+      {groupId && userId && (
+        <PracticeLocationModal
+          isOpen={isLocationModalOpen}
+          onClose={() => setIsLocationModalOpen(false)}
+          groupId={groupId}
+          userId={userId}
+          initialData={practiceLocation}
+          onSaved={(savedData) => {
+            setPracticeLocation(savedData);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -16,8 +16,11 @@ import {
   MessageSquare,
   FileIcon,
   CheckCircle,
-  ExternalLink
+  ExternalLink,
+  MapPin,
+  Building2
 } from "lucide-react";
+import { calculateDistance } from "@/utils/location";
 
 interface GradeAnswerModalProps {
   isOpen: boolean;
@@ -32,6 +35,12 @@ interface GradeAnswerModalProps {
     score: number | null;
     description?: string;
     teacher_comment?: string;
+    locationLat?: number | null;
+    locationLng?: number | null;
+    schoolName?: string | null;
+    practiceLat?: number | null;
+    practiceLng?: number | null;
+    practiceAddress?: string | null;
   } | null;
   onSave: (score: number, teacherComment: string) => void;
 }
@@ -96,6 +105,11 @@ export function GradeAnswerModal({
     }
   };
 
+  const distKm = (answer.locationLat && answer.locationLng && answer.practiceLat && answer.practiceLng)
+    ? calculateDistance(answer.locationLat, answer.locationLng, answer.practiceLat, answer.practiceLng)
+    : null;
+  const distMeters = distKm !== null ? Math.round(distKm * 1000) : null;
+
   return (
     <AdaptiveDrawer
       isOpen={isOpen}
@@ -134,6 +148,61 @@ export function GradeAnswerModal({
             </div>
           </div>
         </div>
+
+        {/* Dual Education Practice School & GPS Details */}
+        {(answer.schoolName || (answer.locationLat && answer.locationLng)) && (
+          <div className="bg-emerald-50/70 dark:bg-emerald-950/30 rounded-2xl p-4 border border-emerald-200/60 dark:border-emerald-800/40 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-emerald-600" /> Amaliyot maktabi (Dual ta'lim)
+              </span>
+              {distMeters !== null && (
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                  distMeters <= 1500 
+                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300"
+                    : "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300"
+                }`}>
+                  {distMeters <= 1500 ? "Hududdan topshirilgan ✅" : "Hududdan uzoqda ⚠️"}
+                </span>
+              )}
+            </div>
+
+            {answer.schoolName && (
+              <p className="text-sm font-bold text-foreground">
+                🏫 {answer.schoolName}
+              </p>
+            )}
+
+            {answer.practiceAddress && (
+              <p className="text-xs text-muted-foreground">
+                📍 {answer.practiceAddress}
+              </p>
+            )}
+
+            {distMeters !== null && (
+              <p className="text-xs text-emerald-900 dark:text-emerald-200 font-medium">
+                Maktabdan topshirish masofasi: <strong>{distMeters < 1000 ? `${distMeters} metr` : `${distKm?.toFixed(2)} km`}</strong>
+              </p>
+            )}
+
+            {answer.locationLat && answer.locationLng && (
+              <div className="pt-1 flex items-center justify-between text-xs">
+                <span className="text-muted-foreground font-mono">
+                  GPS: {answer.locationLat.toFixed(5)}, {answer.locationLng.toFixed(5)}
+                </span>
+                <a
+                  href={`https://www.google.com/maps?q=${answer.locationLat},${answer.locationLng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline flex items-center gap-1 font-semibold"
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  Xaritada ko'rish ↗
+                </a>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Student's Answer Content */}
         <div className="space-y-3">

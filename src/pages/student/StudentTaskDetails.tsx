@@ -17,9 +17,13 @@ import {
   FileText,
   ExternalLink,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Building2,
+  Edit3
 } from 'lucide-react';
 import { SubmissionMap } from '@/components/maps/SubmissionMap';
+import { PracticeLocationModal } from '@/components/modals/PracticeLocationModal';
+import { Button } from '@/components/ui/button';
 import { calculateDistance } from '@/utils/location';
 
 interface EvidenceItem {
@@ -43,6 +47,8 @@ export default function StudentTaskDetails() {
   const [evidences, setEvidences] = useState<EvidenceItem[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [practiceLocation, setPracticeLocation] = useState<any>(null);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -96,6 +102,24 @@ export default function StudentTaskDetails() {
         
       if (taskError) throw taskError;
       setTask(taskData);
+
+      // Guruh a'zoligi orqali talabaning individual amaliyot maktabini olish (Dual ta'lim)
+      if (userId && taskData.group_id) {
+        try {
+          const { data: memberData } = await supabase
+            .from('group_members')
+            .select('id, school_name, practice_lat, practice_lng, practice_address')
+            .eq('group_id', taskData.group_id)
+            .eq('user_id', userId)
+            .maybeSingle();
+
+          if (memberData) {
+            setPracticeLocation(memberData);
+          }
+        } catch (memberErr) {
+          console.warn("Could not fetch student practice location:", memberErr);
+        }
+      }
 
       // Check for existing answer
       if (userId) {
@@ -208,14 +232,20 @@ export default function StudentTaskDetails() {
       return;
     }
 
-    // Geo-amaliyot va majburiy geo tekshiruvi
-    if (task.type === 'internship' && task.mandatory_geo && groupLocation) {
+    // Geo-amaliyot va majburiy geo tekshiruvi (Dual ta'lim: har bir talaba o'z maktabida)
+    if (task.type === 'internship' && task.mandatory_geo) {
+      if (!targetLocation) {
+        setIsLocationModalOpen(true);
+        toast.error("Iltimos, avval amaliyot o'tayotgan maktabingizni biriktiring!");
+        return;
+      }
       if (!userLocation) {
         toast.error("Geo-tasdiqlash majburiy! Iltimos, GPS joylashuvni aniqlang.");
         return;
       }
       if (distMeters !== null && !isWithinRadius) {
-        toast.error(`Geo-tasdiqlash majburiy! Siz belgilangan hudud ichida emassiz (Masofa: ${distMeters < 1000 ? distMeters + ' m' : distKm?.toFixed(2) + ' km'}, ruxsat: ${(radiusMeters / 1000).toFixed(1)} km).`);
+        const placeName = targetLocation.name || "amaliyot maktabingiz";
+        toast.error(`Geo-tasdiqlash majburiy! Siz ${placeName} hududi ichida emassiz (Masofa: ${distMeters < 1000 ? distMeters + ' m' : distKm?.toFixed(2) + ' km'}, ruxsat: ${(radiusMeters / 1000).toFixed(1)} km).`);
         return;
       }
     }
@@ -299,37 +329,49 @@ export default function StudentTaskDetails() {
 
       const fileUrlToSave = uploadedUrls.length > 0 ? uploadedUrls.join(',') : null;
 
-      const payload = {
+      const payload: any = {
         task_id: taskId,
         user_id: userId,
         description: reportText.trim(),
         file_url: fileUrlToSave,
         location_lat: userLocation?.lat || null,
         location_lng: userLocation?.lng || null,
+        school_name: practiceLocation?.school_name || null,
       };
 
-      if (existingAnswer) {
-        const { error } = await supabase
-          .from('answers')
-          .update(payload)
-          .eq('id', existingAnswer.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('answers')
-          .insert(payload);
-        if (error) {
-          // Agar 409 unique constraint (avval javob berilgan bo'lsa), yangilashga o'tkazish
-          if (error.code === '23505') {
-            const { error: updateErr } = await supabase
-              .from('answers')
-              .update(payload)
-              .eq('task_id', taskId)
-              .eq('user_id', userId);
-            if (updateErr) throw updateErr;
-          } else {
-            throw error;
-          }
+      const saveAnswer = async (dataToSave: any) => {
+        if (existingAnswer) {
+          return await supabase
+            .from('answers')
+            .update(dataToSave)
+            .eq('id', existingAnswer.id);
+        } else {
+          return await supabase
+            .from('answers')
+            .insert(dataToSave);
+        }
+      };
+
+      let { error: saveErr } = await saveAnswer(payload);
+
+      // Agar answers jadvalida school_name ustuni hali mavjud bo'lmasa, uni olib tashlab qayta urinish
+      if (saveErr && saveErr.message?.includes('school_name')) {
+        delete payload.school_name;
+        const retryRes = await saveAnswer(payload);
+        saveErr = retryRes.error;
+      }
+
+      if (saveErr) {
+        // Agar 409 unique constraint (avval javob berilgan bo'lsa), yangilashga o'tkazish
+        if (saveErr.code === '23505') {
+          const { error: updateErr } = await supabase
+            .from('answers')
+            .update(payload)
+            .eq('task_id', taskId)
+            .eq('user_id', userId);
+          if (updateErr) throw updateErr;
+        } else {
+          throw saveErr;
         }
       }
 
@@ -359,12 +401,28 @@ export default function StudentTaskDetails() {
   if (!task) return <div className="p-8 text-center text-slate-500">Vazifa topilmadi</div>;
 
   const deadlineDate = task.deadline || task.date;
-  const groupLocation = (task?.groups?.lat && task?.groups?.lng) 
-    ? { lat: task.groups.lat, lng: task.groups.lng } 
+  const hasIndividualLocation = !!(practiceLocation?.practice_lat && practiceLocation?.practice_lng);
+  const targetLocation = hasIndividualLocation
+    ? {
+        lat: Number(practiceLocation.practice_lat),
+        lng: Number(practiceLocation.practice_lng),
+        name: practiceLocation.school_name || "Amaliyot maktabi",
+        address: practiceLocation.practice_address || "",
+        isIndividual: true,
+      }
+    : (task?.groups?.lat && task?.groups?.lng)
+    ? {
+        lat: Number(task.groups.lat),
+        lng: Number(task.groups.lng),
+        name: task.groups.name || "Guruh lokatsiyasi",
+        address: task.groups.address || "",
+        isIndividual: false,
+      }
     : null;
+
   const radiusMeters = (task?.radius || 1.5) * 1000;
-  const distKm = (userLocation && groupLocation) 
-    ? calculateDistance(userLocation.lat, userLocation.lng, groupLocation.lat, groupLocation.lng) 
+  const distKm = (userLocation && targetLocation) 
+    ? calculateDistance(userLocation.lat, userLocation.lng, targetLocation.lat, targetLocation.lng) 
     : null;
   const distMeters = distKm !== null ? Math.round(distKm * 1000) : null;
   const isWithinRadius = distMeters !== null ? distMeters <= radiusMeters : true;
@@ -504,93 +562,152 @@ export default function StudentTaskDetails() {
 
         {/* Live Geo-verification for internship */}
         {task.type === 'internship' && (
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Navigation className="w-5 h-5 text-[#006C4A]" />
-                <h3 className="font-bold text-slate-900 text-[15px]">Jonli Geo-tasdiqlash</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={requestLocation}
-                  disabled={isLocating}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors active:scale-95"
-                  title="GPS yangilash"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isLocating ? 'animate-spin text-[#00A87A]' : ''}`} />
-                  GPS yangilash
-                </button>
-                <div className={`text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 uppercase ${
-                  userLocation ? 'bg-[#5CE3A1] text-[#006644]' : 'bg-amber-100 text-amber-800'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${userLocation ? 'bg-[#006644] animate-pulse' : 'bg-amber-600'}`}></span>
-                  {userLocation ? "GPS Faol" : "GPS Kutilmoqda"}
+          <div className="space-y-4">
+            {/* Dual Education Practice School Card */}
+            <div className="bg-white rounded-3xl p-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mb-1">
+                      Dual ta'lim: Amaliyot maktabi
+                    </span>
+                    <h4 className="font-bold text-slate-900 text-sm">
+                      {practiceLocation?.school_name || "Maktab hali biriktirilmagan"}
+                    </h4>
+                    {practiceLocation?.practice_address ? (
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        📍 {practiceLocation.practice_address}
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Har bir talaba o'z tumanidagi maktab koordinatasini belgilaydi
+                      </p>
+                    )}
+                  </div>
                 </div>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsLocationModalOpen(true)}
+                  className="rounded-xl text-xs font-semibold gap-1.5 h-9 border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 transition-colors flex-shrink-0"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>{hasIndividualLocation ? "O'zgartirish" : "Biriktirish"}</span>
+                </Button>
               </div>
+
+              {!hasIndividualLocation && (
+                <div className="mt-3 p-3 bg-amber-50 border border-amber-200/60 rounded-2xl flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-amber-800 text-xs">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-600" />
+                    <span>Amaliyot maktabingizni biriktiring!</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsLocationModalOpen(true)}
+                    className="text-xs font-bold text-amber-900 underline hover:no-underline whitespace-nowrap"
+                  >
+                    Hozir belgilash →
+                  </button>
+                </div>
+              )}
             </div>
 
-            <div className="bg-white rounded-3xl p-3 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 space-y-3">
-              {/* Real Interactive Map */}
-              <SubmissionMap 
-                userLocation={userLocation} 
-                groupLocation={groupLocation} 
-                radius={radiusMeters} 
-              />
-
-              {/* Status and distance indicator */}
-              {groupLocation ? (
-                <div>
-                  {userLocation ? (
-                    isWithinRadius ? (
-                      <div className="bg-[#E1F7EE] text-[#006C4A] p-3 rounded-2xl flex items-center gap-2.5">
-                        <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-[#00A87A]" />
-                        <div className="text-[12px]">
-                          <p className="font-bold text-[13px] leading-snug">Siz ruxsat etilgan hududdasiz!</p>
-                          <p className="opacity-90 text-[11px] mt-0.5">
-                            Mo'ljalgacha masofa: <strong>{distMeters! < 1000 ? `${distMeters} metr` : `${distKm?.toFixed(2)} km`}</strong> (Ruxsat: {(radiusMeters / 1000).toFixed(1)} km)
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="bg-amber-50 border border-amber-200/60 text-amber-900 p-3 rounded-2xl flex items-center gap-2.5">
-                        <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600" />
-                        <div className="text-[12px]">
-                          <p className="font-bold text-[13px] text-amber-800 leading-snug">
-                            {task.mandatory_geo ? "Belgilangan hududdan tashqaridasiz!" : "Hududdan tashqaridasiz"}
-                          </p>
-                          <p className="text-amber-700 text-[11px] mt-0.5">
-                            Mo'ljalgacha masofa: <strong>{distMeters! < 1000 ? `${distMeters} m` : `${distKm?.toFixed(2)} km`}</strong> (Ruxsat: {(radiusMeters / 1000).toFixed(1)} km). 
-                            {task.mandatory_geo ? " Vazifa topshirish uchun belgilangan hududga kiring." : ""}
-                          </p>
-                        </div>
-                      </div>
-                    )
-                  ) : (
-                    <div className="bg-slate-50 border border-slate-200/60 p-3 rounded-2xl flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-slate-600 text-[12px]">
-                        <MapPin className="w-4 h-4 text-slate-400" />
-                        <span>GPS joylashuvingiz aniqlanmadi</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={requestLocation}
-                        className="text-[11px] font-bold text-blue-600 hover:underline"
-                      >
-                        Aniqlash
-                      </button>
-                    </div>
-                  )}
-
-                  {task.groups?.address && (
-                    <p className="text-[11px] text-slate-500 px-1 mt-2">
-                      Mo'ljal manzili: <span className="font-semibold text-slate-700">{task.groups.address}</span>
-                    </p>
-                  )}
+            {/* Map & Distance Card */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Navigation className="w-5 h-5 text-[#006C4A]" />
+                  <h3 className="font-bold text-slate-900 text-[15px]">Jonli Geo-tasdiqlash</h3>
                 </div>
-              ) : (
-                <p className="text-[11px] text-slate-400 p-2 text-center">Guruh uchun mo'ljal koordinatasi belgilanmagan</p>
-              )}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={requestLocation}
+                    disabled={isLocating}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors active:scale-95"
+                    title="GPS yangilash"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLocating ? 'animate-spin text-[#00A87A]' : ''}`} />
+                    GPS yangilash
+                  </button>
+                  <div className={`text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 uppercase ${
+                    userLocation ? 'bg-[#5CE3A1] text-[#006644]' : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${userLocation ? 'bg-[#006644] animate-pulse' : 'bg-amber-600'}`}></span>
+                    {userLocation ? "GPS Faol" : "GPS Kutilmoqda"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl p-3 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 space-y-3">
+                {/* Real Interactive Map */}
+                <SubmissionMap 
+                  userLocation={userLocation} 
+                  groupLocation={targetLocation ? { lat: targetLocation.lat, lng: targetLocation.lng } : null} 
+                  radius={radiusMeters} 
+                  targetName={targetLocation?.name ? `🏫 ${targetLocation.name}` : undefined}
+                />
+
+                {/* Status and distance indicator */}
+                {targetLocation ? (
+                  <div>
+                    {userLocation ? (
+                      isWithinRadius ? (
+                        <div className="bg-[#E1F7EE] text-[#006C4A] p-3 rounded-2xl flex items-center gap-2.5">
+                          <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-[#00A87A]" />
+                          <div className="text-[12px]">
+                            <p className="font-bold text-[13px] leading-snug">Siz ruxsat etilgan hududdasiz!</p>
+                            <p className="opacity-90 text-[11px] mt-0.5">
+                              {targetLocation.name}gacha masofa: <strong>{distMeters! < 1000 ? `${distMeters} metr` : `${distKm?.toFixed(2)} km`}</strong> (Ruxsat: {(radiusMeters / 1000).toFixed(1)} km)
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-amber-50 border border-amber-200/60 text-amber-900 p-3 rounded-2xl flex items-center gap-2.5">
+                          <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600" />
+                          <div className="text-[12px]">
+                            <p className="font-bold text-[13px] text-amber-800 leading-snug">
+                              {task.mandatory_geo ? "Belgilangan hududdan tashqaridasiz!" : "Hududdan tashqaridasiz"}
+                            </p>
+                            <p className="text-amber-700 text-[11px] mt-0.5">
+                              {targetLocation.name}gacha masofa: <strong>{distMeters! < 1000 ? `${distMeters} m` : `${distKm?.toFixed(2)} km`}</strong> (Ruxsat: {(radiusMeters / 1000).toFixed(1)} km). 
+                              {task.mandatory_geo ? " Vazifa topshirish uchun amaliyot maktabingiz hududiga kiring." : ""}
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    ) : (
+                      <div className="bg-slate-50 border border-slate-200/60 p-3 rounded-2xl flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-slate-600 text-[12px]">
+                          <MapPin className="w-4 h-4 text-slate-400" />
+                          <span>GPS joylashuvingiz aniqlanmadi</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={requestLocation}
+                          className="text-[11px] font-bold text-blue-600 hover:underline"
+                        >
+                          Aniqlash
+                        </button>
+                      </div>
+                    )}
+
+                    {targetLocation.address && (
+                      <p className="text-[11px] text-slate-500 px-1 mt-2">
+                        Mo'ljal manzili: <span className="font-semibold text-slate-700">{targetLocation.address}</span>
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 p-2 text-center">Guruh yoki amaliyot maktabi uchun koordinata belgilanmagan</p>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -739,6 +856,20 @@ export default function StudentTaskDetails() {
           </p>
         </div>
       </div>
+
+      {/* Practice Location Modal (Dual Ta'lim) */}
+      {task?.group_id && userId && (
+        <PracticeLocationModal
+          isOpen={isLocationModalOpen}
+          onClose={() => setIsLocationModalOpen(false)}
+          groupId={task.group_id}
+          userId={userId}
+          initialData={practiceLocation}
+          onSaved={(savedData) => {
+            setPracticeLocation(savedData);
+          }}
+        />
+      )}
     </div>
   );
 }

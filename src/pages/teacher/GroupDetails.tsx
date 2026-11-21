@@ -3,13 +3,14 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, Calendar, FileText } from "lucide-react";
+import { MapPin, Calendar, FileText, Users, Building2, ExternalLink } from "lucide-react";
 
 export default function GroupDetails() {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const [group, setGroup] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,6 +31,31 @@ export default function GroupDetails() {
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
       setTasks(tasksData || []);
+
+      // Guruh a'zolari va ularning amaliyot maktablarini olish (Dual ta'lim)
+      try {
+        const { data: membersData } = await supabase
+          .from("group_members")
+          .select(`
+            id,
+            user_id,
+            school_name,
+            practice_lat,
+            practice_lng,
+            practice_address,
+            joined_at,
+            profiles:user_id (
+              full_name,
+              avatar
+            )
+          `)
+          .eq("group_id", groupId);
+
+        setMembers(membersData || []);
+      } catch (err) {
+        console.warn("Could not fetch members:", err);
+      }
+
       setLoading(false);
     };
     if (groupId) fetchData();
@@ -102,6 +128,77 @@ export default function GroupDetails() {
                 </p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Dual Education: Students & Practice Schools */}
+        <Card className="rounded-3xl shadow-sm border border-zinc-200/60 bg-white overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-zinc-200/60 py-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-bold text-zinc-900 flex items-center gap-2">
+                <Users className="w-5 h-5 text-emerald-700" />
+                Dual ta'lim: Talabalar va amaliyot maktablari
+              </CardTitle>
+              <span className="text-xs font-bold text-emerald-800 bg-emerald-100/80 px-2.5 py-1 rounded-full">
+                {members.length} ta talaba
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6">
+            {members.length === 0 ? (
+              <p className="text-sm text-zinc-500 text-center py-6">
+                Bu guruhga hali talabalar qo'shilmagan.
+              </p>
+            ) : (
+              <div className="divide-y divide-zinc-100">
+                {members.map((m, idx) => {
+                  const studentName = m.profiles?.full_name || "Talaba #" + (idx + 1);
+                  const hasSchool = !!m.school_name;
+                  return (
+                    <div key={m.id || idx} className="py-3.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold flex items-center justify-center flex-shrink-0 text-sm shadow-sm">
+                          {studentName.charAt(0)}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-zinc-900 text-sm">{studentName}</h4>
+                          {hasSchool ? (
+                            <div className="mt-0.5 space-y-0.5">
+                              <p className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
+                                <Building2 className="w-3.5 h-3.5" />
+                                {m.school_name}
+                              </p>
+                              {m.practice_address && (
+                                <p className="text-[11px] text-zinc-500">
+                                  📍 {m.practice_address}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-amber-600 font-medium mt-0.5">
+                              ⚠️ Amaliyot maktabi hali biriktirilmagan
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {m.practice_lat && m.practice_lng && (
+                        <a
+                          href={`https://www.google.com/maps?q=${m.practice_lat},${m.practice_lng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-xl hover:bg-blue-100 transition-colors flex-shrink-0 self-start sm:self-auto"
+                        >
+                          <MapPin className="w-3.5 h-3.5" />
+                          <span>Xaritada ko'rish</span>
+                          <ExternalLink className="w-3 h-3 ml-0.5" />
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
 

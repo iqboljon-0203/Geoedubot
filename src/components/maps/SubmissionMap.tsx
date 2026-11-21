@@ -49,9 +49,15 @@ interface SubmissionMapProps {
   userLocation: { lat: number; lng: number } | null;
   groupLocation: { lat: number; lng: number } | null;
   radius?: number; // radius in meters
+  targetName?: string;
 }
 
-export const SubmissionMap = ({ userLocation, groupLocation, radius = 500 }: SubmissionMapProps) => {
+export const SubmissionMap = ({ 
+  userLocation, 
+  groupLocation, 
+  radius = 500,
+  targetName 
+}: SubmissionMapProps) => {
   const { t } = useTranslation();
   const defaultCenter = { lat: 41.2995, lng: 69.2401 };
   const center = groupLocation || userLocation || defaultCenter;
@@ -74,7 +80,7 @@ export const SubmissionMap = ({ userLocation, groupLocation, radius = 500 }: Sub
             <Marker position={[groupLocation.lat, groupLocation.lng]} icon={targetIcon}>
               <Popup>
                 <div className="text-xs font-semibold">
-                  {t('map.target_location', 'Belgilangan amaliyot maydoni')}
+                  {targetName || t('map.target_location', 'Belgilangan amaliyot maydoni')}
                   <br />
                   <span className="text-slate-500 font-normal">Ruxsat doirasi: {radius >= 1000 ? `${(radius / 1000).toFixed(1)} km` : `${radius} m`}</span>
                 </div>
